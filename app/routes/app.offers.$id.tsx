@@ -261,7 +261,7 @@ export default function OfferEditor() {
   return (
     <s-page
       heading={loaded.id ? title || "Edit offer" : "Create offer"}
-      inlineSize="large"
+      inlineSize="base"
     >
       <s-link slot="breadcrumb-actions" href="/app">
         Offers
@@ -406,7 +406,7 @@ export default function OfferEditor() {
             return (
               <s-box key={i} border="base" borderRadius="base" background={open ? "base" : "subdued"}>
                 <s-box padding="small-100 base">
-                  <s-stack direction="inline" alignItems="center" gap="small" justifyContent="space-between">
+                  <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="small">
                     <s-clickable onClick={() => setOpenTier(open ? null : i)} accessibilityLabel={open ? "Collapse tier" : "Expand tier"}>
                       <s-stack direction="inline" gap="small" alignItems="center">
                         <s-text type="strong">Tier {pos + 1}</s-text>
@@ -444,7 +444,7 @@ export default function OfferEditor() {
                         onClick={() => setOpenTier(open ? null : i)}
                       />
                     </s-stack>
-                  </s-stack>
+                  </s-grid>
                 </s-box>
                 {open && (
                   <s-box padding="base" borderWidth="small none none none" borderColor="base">
