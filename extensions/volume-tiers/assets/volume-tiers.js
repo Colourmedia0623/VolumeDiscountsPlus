@@ -139,7 +139,7 @@
     var moneyFormat = root.getAttribute("data-money-format");
     var text = {
       each: root.getAttribute("data-text-each") || "each",
-      save: root.getAttribute("data-text-save") || "Save {{amount}}",
+      save: root.getAttribute("data-text-save") || "Save [amount]",
       standard: root.getAttribute("data-text-standard") || "Standard price",
       buyOne: root.getAttribute("data-text-buy-one") || "Buy 1",
     };
@@ -235,7 +235,7 @@
           settings.showPerItemPrice !== false && row.qty > 1 ? formatMoney(eachPrice, moneyFormat) + " " + text.each : "";
         b.each.hidden = !b.each.textContent;
         b.save.textContent =
-          settings.showSavings !== false && saving >= 1 ? text.save.replace("{{amount}}", formatMoney(saving, moneyFormat)) : "";
+          settings.showSavings !== false && saving >= 1 ? text.save.replace("[amount]", formatMoney(saving, moneyFormat)) : "";
         b.save.hidden = !b.save.textContent;
       });
     }
