@@ -1,8 +1,5 @@
 {
   "volume_tiers": {
-    "each": "each",
-    "save": "Save [amount]",
-    "standard_price": "Standard price",
-    "buy_one": "Buy 1"
+    "each": "each"
   }
 }

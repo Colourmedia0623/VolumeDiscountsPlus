@@ -14,9 +14,6 @@
     data-section-id="{{ section.id }}"
     data-money-format="{{ shop.money_format | escape }}"
     data-text-each="{{ 'volume_tiers.each' | t }}"
-    data-text-save="{{ 'volume_tiers.save' | t | escape }}"
-    data-text-standard="{{ 'volume_tiers.standard_price' | t }}"
-    data-text-buy-one="{{ 'volume_tiers.buy_one' | t }}"
     style="
       --vdp-accent: {{ vdp_settings.accentColor | default: '#1f6f5c' }};
       --vdp-text: {{ vdp_settings.textColor | default: '#1a1a1a' }};
@@ -24,7 +21,10 @@
       --vdp-bg-selected: {{ vdp_settings.selectedBackgroundColor | default: '#eef7f4' }};
       --vdp-badge: {{ vdp_settings.badgeColor | default: '#f2b134' }};
       --vdp-badge-text: {{ vdp_settings.badgeTextColor | default: '#1a1a1a' }};
+      --vdp-tag: {{ vdp_settings.tagColor | default: '#1f6f5c' }};
+      --vdp-tag-text: {{ vdp_settings.tagTextColor | default: '#ffffff' }};
       --vdp-radius: {{ vdp_settings.borderRadius | default: 10 }}px;
+      --vdp-space: {{ vdp_settings.spacing | default: 12 }}px;
       margin-top: {{ block.settings.margin_top }}px;
       margin-bottom: {{ block.settings.margin_bottom }}px;
     "
@@ -45,6 +45,8 @@
     </script>
     <div class="vdp-tiers__heading" data-vdp-heading></div>
     <div class="vdp-tiers__list" role="radiogroup" data-vdp-list></div>
+    <div class="vdp-tiers__total" data-vdp-total aria-live="polite" hidden></div>
+    <div class="vdp-tiers__footer" data-vdp-footer hidden></div>
   </div>
   {{ 'volume-tiers.css' | asset_url | stylesheet_tag }}
   <script src="{{ 'volume-tiers.js' | asset_url }}" defer></script>
