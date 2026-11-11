@@ -3,7 +3,7 @@
 # other shopify.app.*.toml files.
 # client_id comes from this app's page in the Shopify Dev Dashboard.
 client_id = "REPLACE_WITH_DYESUB_CLIENT_ID"
-name = "Volume Discounts Plus – Dye Sublimation Store"
+name = "Volume Discounts – DyeSub"
 application_url = "https://dyesub.volumediscounts.colourmedia.net"
 embedded = true
 
