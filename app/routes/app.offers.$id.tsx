@@ -759,6 +759,78 @@ export default function OfferEditor() {
         </s-stack>
       </s-section>
 
+      <s-section heading="Prices and text">
+        <s-stack gap="base">
+          <s-select
+            label="Price on each card"
+            value={config.priceDisplay}
+            onChange={(e) =>
+              update({
+                priceDisplay: e.currentTarget
+                  .value as OfferConfig["priceDisplay"],
+              })
+            }
+          >
+            <s-option value="each">Price for one item</s-option>
+            <s-option value="total">Total for the tier quantity</s-option>
+          </s-select>
+          {config.priceDisplay === "each" && (
+            <s-text-field
+              label="Text after the item price"
+              placeholder="e.g. / each ex VAT"
+              details="Unit prices are shown to the penny, so they can differ by up to 1p from the total divided by the quantity."
+              value={config.eachPriceText}
+              onInput={(e) => update({ eachPriceText: e.currentTarget.value })}
+            />
+          )}
+          <s-switch
+            label="Show the full price crossed out"
+            checked={config.showCompareAt}
+            onChange={(e) => update({ showCompareAt: e.currentTarget.checked })}
+          />
+          <s-switch
+            label="Show a total under the tiers"
+            checked={config.showTotal}
+            onChange={(e) => update({ showTotal: e.currentTarget.checked })}
+          />
+          {config.showTotal && (
+            <s-text-field
+              label="Total label"
+              value={config.totalText}
+              onInput={(e) => update({ totalText: e.currentTarget.value })}
+            />
+          )}
+          <s-switch
+            label="Show the discount tag next to each title"
+            checked={config.showDiscountTag}
+            onChange={(e) =>
+              update({ showDiscountTag: e.currentTarget.checked })
+            }
+          />
+          {config.showDiscountTag && (
+            <s-text-field
+              label="Discount tag text"
+              details="{discount} becomes the saving, e.g. 5% or £0.10."
+              value={config.discountTagText}
+              onInput={(e) =>
+                update({ discountTagText: e.currentTarget.value })
+              }
+            />
+          )}
+          <s-switch
+            label="Hide pence in prices (e.g. £12 instead of £12.00)"
+            checked={config.hideDecimals}
+            onChange={(e) => update({ hideDecimals: e.currentTarget.checked })}
+          />
+          <s-text-field
+            label="Footer text"
+            placeholder="Optional, e.g. Prices exclude VAT"
+            value={config.footerText}
+            onInput={(e) => update({ footerText: e.currentTarget.value })}
+          />
+        </s-stack>
+      </s-section>
+
       <s-section heading="Colour and style">
         <s-stack gap="base">
           <s-choice-list
@@ -877,78 +949,6 @@ export default function OfferEditor() {
           >
             Reset to my default style
           </s-button>
-        </s-stack>
-      </s-section>
-
-      <s-section heading="Prices and text">
-        <s-stack gap="base">
-          <s-select
-            label="Price on each card"
-            value={config.priceDisplay}
-            onChange={(e) =>
-              update({
-                priceDisplay: e.currentTarget
-                  .value as OfferConfig["priceDisplay"],
-              })
-            }
-          >
-            <s-option value="each">Price for one item</s-option>
-            <s-option value="total">Total for the tier quantity</s-option>
-          </s-select>
-          {config.priceDisplay === "each" && (
-            <s-text-field
-              label="Text after the item price"
-              placeholder="e.g. / each ex VAT"
-              details="Unit prices are shown to the penny, so they can differ by up to 1p from the total divided by the quantity."
-              value={config.eachPriceText}
-              onInput={(e) => update({ eachPriceText: e.currentTarget.value })}
-            />
-          )}
-          <s-switch
-            label="Show the full price crossed out"
-            checked={config.showCompareAt}
-            onChange={(e) => update({ showCompareAt: e.currentTarget.checked })}
-          />
-          <s-switch
-            label="Show a total under the tiers"
-            checked={config.showTotal}
-            onChange={(e) => update({ showTotal: e.currentTarget.checked })}
-          />
-          {config.showTotal && (
-            <s-text-field
-              label="Total label"
-              value={config.totalText}
-              onInput={(e) => update({ totalText: e.currentTarget.value })}
-            />
-          )}
-          <s-switch
-            label="Show the discount tag next to each title"
-            checked={config.showDiscountTag}
-            onChange={(e) =>
-              update({ showDiscountTag: e.currentTarget.checked })
-            }
-          />
-          {config.showDiscountTag && (
-            <s-text-field
-              label="Discount tag text"
-              details="{discount} becomes the saving, e.g. 5% or £0.10."
-              value={config.discountTagText}
-              onInput={(e) =>
-                update({ discountTagText: e.currentTarget.value })
-              }
-            />
-          )}
-          <s-switch
-            label="Hide pence in prices (e.g. £12 instead of £12.00)"
-            checked={config.hideDecimals}
-            onChange={(e) => update({ hideDecimals: e.currentTarget.checked })}
-          />
-          <s-text-field
-            label="Footer text"
-            placeholder="Optional, e.g. Prices exclude VAT"
-            value={config.footerText}
-            onInput={(e) => update({ footerText: e.currentTarget.value })}
-          />
         </s-stack>
       </s-section>
 
