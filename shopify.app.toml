@@ -16,7 +16,7 @@ include_config_on_deploy = true
 scopes = "write_discounts,read_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://example.com/auth/callback" ]
 
 [webhooks]
 api_version = "2026-10"

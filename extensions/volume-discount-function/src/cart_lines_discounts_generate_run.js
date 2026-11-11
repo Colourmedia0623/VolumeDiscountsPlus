@@ -1,8 +1,3 @@
-import {
-  DiscountClass,
-  ProductDiscountSelectionStrategy,
-} from "../generated/api";
-
 /**
  * @typedef {import("../generated/api").CartInput} RunInput
  * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
@@ -19,6 +14,10 @@ import {
  */
 
 const EMPTY = { operations: [] };
+// Enum values from the schema, inlined so the logic tests can run without
+// the CLI-generated types.
+const DISCOUNT_CLASS_PRODUCT = "PRODUCT";
+const SELECTION_ALL = "ALL";
 
 /**
  * Tiered quantity-break discount.
@@ -31,7 +30,7 @@ const EMPTY = { operations: [] };
  * @returns {CartLinesDiscountsGenerateRunResult}
  */
 export function cartLinesDiscountsGenerateRun(input) {
-  if (!input.discount.discountClasses.includes(DiscountClass.Product)) {
+  if (!input.discount.discountClasses.includes(DISCOUNT_CLASS_PRODUCT)) {
     return EMPTY;
   }
 
@@ -110,7 +109,7 @@ export function cartLinesDiscountsGenerateRun(input) {
         productDiscountsAdd: {
           candidates,
           // Candidates never target the same line twice, so apply all of them.
-          selectionStrategy: ProductDiscountSelectionStrategy.All,
+          selectionStrategy: SELECTION_ALL,
         },
       },
     ],

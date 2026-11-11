@@ -1,0 +1,34 @@
+# Private copy of Volume Discounts Plus for Gift Boxes (custom distribution, free).
+# Same code as every other copy; keep the rest of this file in step with the
+# other shopify.app.*.toml files.
+# client_id comes from this app's page in the Shopify Dev Dashboard.
+client_id = "REPLACE_WITH_GIFTBOXES_CLIENT_ID"
+name = "Volume Discounts Plus – Gift Boxes"
+application_url = "https://giftboxes.volumediscounts.colourmedia.net"
+embedded = true
+
+[build]
+# The app runs on the EC2 server, so `shopify app dev` must not rewrite these URLs.
+automatically_update_urls_on_dev = false
+include_config_on_deploy = true
+
+[auth]
+redirect_urls = [ "https://giftboxes.volumediscounts.colourmedia.net/auth/callback" ]
+
+[access_scopes]
+scopes = "write_discounts,read_products"
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]

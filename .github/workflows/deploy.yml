@@ -1,0 +1,153 @@
+name: Deploy to EC2
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # One private, free copy per store (shopify.app.<store>.toml). A copy runs
+      # once its app exists (a real client ID in its toml) and its secret is set.
+      - name: Write store environments
+        env:
+          SHOPIFY_DYESUB_API_SECRET: ${{ secrets.SHOPIFY_DYESUB_API_SECRET }}
+          SHOPIFY_GIFTBOXES_API_SECRET: ${{ secrets.SHOPIFY_GIFTBOXES_API_SECRET }}
+        run: |
+          : > deploy/Caddyfile.stores
+          profiles=
+          hosts=
+          for store in dyesub giftboxes; do
+            toml=shopify.app.$store.toml
+            : > deploy/.env.$store
+            secret_var="SHOPIFY_$(echo "$store" | tr a-z A-Z)_API_SECRET"
+            secret=${!secret_var}
+            id=$(sed -n 's/^client_id = "\(.*\)"/\1/p' "$toml")
+            url=$(sed -n 's/^application_url = "\(.*\)"/\1/p' "$toml")
+            host=${url#https://}
+            if [ -z "$secret" ] || [[ "$id" == REPLACE_WITH_* ]]; then
+              echo "$store copy not set up yet (needs a client ID in $toml and the $secret_var secret); skipping it."
+              continue
+            fi
+            scopes=$(sed -n 's/^scopes = "\(.*\)"/\1/p' "$toml")
+            {
+              echo "SHOPIFY_API_KEY=$id"
+              echo "SHOPIFY_API_SECRET=$secret"
+              echo "SHOPIFY_APP_URL=$url"
+              echo "SCOPES=$scopes"
+            } > deploy/.env.$store
+            printf '%s {\n\treverse_proxy %s:3000\n}\n\n' "$host" "$store" >> deploy/Caddyfile.stores
+            profiles="$profiles --profile $store"
+            hosts="$hosts $host"
+          done
+          if [ -z "$profiles" ]; then
+            echo "::error::No store copy is set up yet. See deploy/README.md."
+            exit 1
+          fi
+          echo "PROFILES=$profiles" >> "$GITHUB_ENV"
+          echo "HOSTS=$hosts" >> "$GITHUB_ENV"
+
+      # Build here rather than on the small EC2 instance, reusing CI's layer cache.
+      # BuildKit from AWS's public mirror: Docker Hub times out or rate-limits
+      # the shared runners.
+      # That mirror throttles the shared runners now and then ("Rate
+      # exceeded"), which setup-buildx doesn't retry, so pull it here first.
+      - name: Pull BuildKit
+        # Falls back to Docker Hub's copy (tagged with the mirror's name, so
+        # setup-buildx uses it) when the mirror keeps refusing.
+        run: |
+          img=public.ecr.aws/vend/moby/buildkit:buildx-stable-1
+          for i in 1 2 3 4 5 6 7 8; do
+            docker pull -q "$img" && exit 0
+            if [ $((i % 2)) = 0 ] && docker pull -q moby/buildkit:buildx-stable-1; then
+              docker tag moby/buildkit:buildx-stable-1 "$img" && exit 0
+            fi
+            sleep $((i * 8))
+          done
+          exit 1
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=public.ecr.aws/vend/moby/buildkit:buildx-stable-1
+      # The Node base image from the first mirror that answers.
+      - name: Pick the Node image
+        id: node
+        run: |
+          for img in mirror.gcr.io/library/node:22-alpine public.ecr.aws/docker/library/node:22-alpine node:22-alpine; do
+            for i in 1 2 3; do
+              if docker buildx imagetools inspect "$img" > /dev/null 2>&1; then
+                echo "image=$img" >> "$GITHUB_OUTPUT"; echo "Using $img"; exit 0
+              fi
+              sleep $((i * 5))
+            done
+          done
+          exit 1
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: NODE_IMAGE=${{ steps.node.outputs.image }}
+          tags: volumediscounts:latest
+          load: true
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+
+      - name: Load on server and restart
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          # Keys copied on Windows carry CRLF line endings, which OpenSSH rejects.
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/ec2 && chmod 600 ~/.ssh/ec2
+          ssh-keygen -y -f ~/.ssh/ec2 > /dev/null || {
+            echo "::error::EC2_SSH_KEY is not a valid private key. Paste the whole .pem file, including the BEGIN and END lines."
+            exit 1
+          }
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          ssh_ec2() { ssh -i ~/.ssh/ec2 "ubuntu@$EC2_HOST" "$@"; }
+
+          docker save volumediscounts:latest | gzip -1 | ssh_ec2 'gunzip | docker load'
+          tar czf - deploy | ssh_ec2 "PROFILES='$PROFILES'" '
+            set -e
+            rm -rf /opt/volumediscounts/src.new && mkdir -p /opt/volumediscounts/src.new
+            tar xzf - -C /opt/volumediscounts/src.new
+            rm -rf /opt/volumediscounts/src && mv /opt/volumediscounts/src.new /opt/volumediscounts/src
+            cd /opt/volumediscounts/src/deploy && docker compose $PROFILES up -d --remove-orphans
+            # The Caddyfiles are replaced on each deploy, so restart Caddy to read the new ones.
+            docker compose $PROFILES up -d --force-recreate --no-deps caddy
+            docker image prune -f'
+
+      # Caddy may need a minute to get the certificate after an address change.
+      - name: Check each store copy answers over HTTPS
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          why() {
+            ip=$(getent ahostsv4 "$1" | awk 'NR==1{print $1}')
+            server=$(getent ahostsv4 "$EC2_HOST" | awk 'NR==1{print $1}')
+            if [ -z "$ip" ]; then echo "$1 has no DNS A record yet."
+            elif [ "$ip" != "$server" ]; then echo "$1 points at $ip, not the server."
+            else echo "$1 points at the server. Caddy's recent log:"
+              ssh -i ~/.ssh/ec2 "ubuntu@$EC2_HOST" 'cd /opt/volumediscounts/src/deploy && cat Caddyfile.stores && docker compose logs --tail 30 caddy'
+            fi
+          }
+          for host in $HOSTS; do
+            ok=
+            for i in $(seq 1 12); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "https://$host/" || true)
+              echo "https://$host/ answered $code"
+              case "$code" in 2*|3*) ok=1; break ;; esac
+              sleep 10
+            done
+            [ -n "$ok" ] || { why "$host"; echo "::error::https://$host/ isn't answering."; exit 1; }
+          done
