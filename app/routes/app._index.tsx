@@ -26,13 +26,19 @@ import {
   ShopifyUserError,
   deleteOffer,
   duplicateOffer,
+  getSettings,
   setOfferStatus,
 } from "../lib/offers.server";
+import { formatDate } from "../lib/formats";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const params = parseListParams(new URL(request.url).searchParams);
-  const offers = await prisma.offer.findMany({ where: { shop: session.shop } });
+  const [offers, settings] = await Promise.all([
+    prisma.offer.findMany({ where: { shop: session.shop } }),
+    getSettings(session.shop),
+  ]);
+  const { dateFormat } = settings;
   const list = buildOfferList(offers, params);
 
   const shopHandle = session.shop.replace(".myshopify.com", "");
@@ -52,7 +58,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       title: o.title,
       active: o.status === "ACTIVE",
       display: o.display,
-      lastEdited: relativeTime(o.updatedAt, now),
+      lastEdited: relativeTime(o.updatedAt, now, dateFormat),
+      // Shown under the status, e.g. "Starts 1 Dec 2026".
+      schedule:
+        o.display === "scheduled" && o.config.startsAt
+          ? `Starts ${formatDate(o.config.startsAt, dateFormat)}`
+          : o.display === "expired" && o.config.endsAt
+            ? `Ended ${formatDate(o.config.endsAt, dateFormat)}`
+            : o.display === "active" && o.config.endsAt
+              ? `Ends ${formatDate(o.config.endsAt, dateFormat)}`
+              : "",
       tierCount: o.config.tiers.length,
       discountId: o.discountId ? o.discountId.split("/").pop() : null,
     })),
@@ -257,6 +272,7 @@ export default function Offers() {
                     </s-table-cell>
                     <s-table-cell>{offer.lastEdited}</s-table-cell>
                     <s-table-cell>
+                      <s-stack gap="small-300">
                       <s-stack direction="inline" gap="small" alignItems="center">
                         <s-badge tone={badge.tone}>{badge.label}</s-badge>
                         <s-switch
@@ -268,6 +284,10 @@ export default function Offers() {
                             submit(on ? "deactivate" : "activate", offer.id)
                           }
                         />
+                      </s-stack>
+                      {offer.schedule && (
+                        <s-text tone="neutral">{offer.schedule}</s-text>
+                      )}
                       </s-stack>
                     </s-table-cell>
                     <s-table-cell>

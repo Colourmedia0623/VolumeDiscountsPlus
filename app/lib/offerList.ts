@@ -1,6 +1,7 @@
 // Filtering, sorting and paging for the Offers list. Kept free of server
 // imports so it can be unit-tested.
 import { parseConfig } from "./offers";
+import { formatDate, type DateFormat } from "./formats";
 
 export type DisplayStatus = "active" | "scheduled" | "expired" | "paused";
 export type StatusTab = "all" | DisplayStatus;
@@ -119,8 +120,12 @@ export function buildOfferList(
   };
 }
 
-/** "13 min ago", "3 h ago", "Yesterday", or "11 Sept 2026". */
-export function relativeTime(date: Date, now = new Date()): string {
+/** "13 min ago", "3 h ago", "Yesterday", or a date in the chosen format. */
+export function relativeTime(
+  date: Date,
+  now = new Date(),
+  dateFormat: DateFormat = "d MMM yyyy",
+): string {
   const s = Math.round((now.getTime() - date.getTime()) / 1000);
   if (s < 60) return "Just now";
   const m = Math.floor(s / 60);
@@ -128,5 +133,5 @@ export function relativeTime(date: Date, now = new Date()): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h} h ago`;
   if (h < 48) return "Yesterday";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return formatDate(date, dateFormat);
 }

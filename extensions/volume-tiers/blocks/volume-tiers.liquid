@@ -13,6 +13,7 @@
     data-vdp-root
     data-section-id="{{ section.id }}"
     data-money-format="{{ shop.money_format | escape }}"
+    data-currency="{{ cart.currency.iso_code }}"
     data-text-each="{{ 'volume_tiers.each' | t }}"
     style="
       --vdp-accent: {{ vdp_settings.accentColor | default: '#1f6f5c' }};

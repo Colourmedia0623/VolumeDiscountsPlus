@@ -74,6 +74,34 @@
     });
   }
 
+  function currencySymbol(code) {
+    try {
+      var parts = new Intl.NumberFormat("en", { style: "currency", currency: code, currencyDisplay: "narrowSymbol" }).formatToParts(0);
+      for (var i = 0; i < parts.length; i++) if (parts[i].type === "currency") return parts[i].value;
+    } catch (e) {
+      // Unknown code: fall back to the code itself.
+    }
+    return code;
+  }
+
+  /** Money format from the app's Settings, as a Shopify-style format string. Null = the store's own. */
+  function appMoneyFormat(setting, code) {
+    if (!setting || setting === "store" || !code) return null;
+    var symbol = currencySymbol(code);
+    switch (setting) {
+      case "symbol":
+        return symbol + "{{amount}}";
+      case "symbol_code":
+        return symbol + "{{amount}} " + code;
+      case "code":
+        return code + " {{amount}}";
+      case "symbol_after":
+        return "{{amount_with_comma_separator}} " + symbol;
+      default:
+        return null;
+    }
+  }
+
   function currencyRate() {
     var s = window.Shopify;
     var rate = s && s.currency && Number(s.currency.rate);
@@ -198,7 +226,13 @@
 
     var display = offer.display || {};
     applyStyle(root, offer.style || data.settings);
-    var moneyFormat = root.getAttribute("data-money-format") || "${{amount}}";
+    var shopSettings = data.settings || {};
+    var activeCurrency =
+      (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) || root.getAttribute("data-currency");
+    var moneyFormat =
+      appMoneyFormat(shopSettings.currencyFormat, activeCurrency) ||
+      root.getAttribute("data-money-format") ||
+      "${{amount}}";
     var displayFormat = display.hideDecimals
       ? moneyFormat.replace(/\{\{\s*amount(_with_comma_separator)?\s*\}\}/, function (_, comma) {
           return comma ? "{{amount_no_decimals_with_comma_separator}}" : "{{amount_no_decimals}}";

@@ -141,7 +141,7 @@ export default function OfferEditor() {
   const [samplePrice, setSamplePrice] = useState(25);
   const settings: WidgetSettings = loaded.settings;
   const style = config.style ?? settings;
-  const money = moneyFormatter(loaded.currency);
+  const money = moneyFormatter(loaded.currency, false, settings.currencyFormat);
 
   const saving = fetcher.state !== "idle";
   const errors = fetcher.data?.errors ?? [];
@@ -762,7 +762,13 @@ export default function OfferEditor() {
 
       <s-section slot="aside" heading="Preview">
         <s-stack gap="base">
-          <TierPreview config={config} style={style} unitPrice={samplePrice} currency={loaded.currency} />
+          <TierPreview
+            config={config}
+            style={style}
+            unitPrice={samplePrice}
+            currency={loaded.currency}
+            currencyFormat={settings.currencyFormat}
+          />
           <s-number-field
             label="Sample price for one item"
             min={0}
