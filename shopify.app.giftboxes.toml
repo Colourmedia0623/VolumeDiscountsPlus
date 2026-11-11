@@ -2,7 +2,7 @@
 # Same code as every other copy; keep the rest of this file in step with the
 # other shopify.app.*.toml files.
 # client_id comes from this app's page in the Shopify Dev Dashboard.
-client_id = "REPLACE_WITH_GIFTBOXES_CLIENT_ID"
+client_id = "7672ca273b5ca9f42e028d2763d347a5"
 name = "Volume Discounts - GiftBoxes"
 application_url = "https://giftboxes.volumediscounts.colourmedia.net"
 embedded = true
