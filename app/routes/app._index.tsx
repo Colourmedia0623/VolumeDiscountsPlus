@@ -159,7 +159,7 @@ export default function Offers() {
   const pendingIntent = fetcher.formData?.get("intent");
 
   return (
-    <s-page heading="Volume discount offers" inlineSize="large">
+    <s-page heading="Volume discount offers" inlineSize="base">
       <s-button
         slot="primary-action"
         variant="primary"
