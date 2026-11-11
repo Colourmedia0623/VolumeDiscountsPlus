@@ -14,7 +14,7 @@
     data-section-id="{{ section.id }}"
     data-money-format="{{ shop.money_format | escape }}"
     data-text-each="{{ 'volume_tiers.each' | t }}"
-    data-text-save="{{ 'volume_tiers.save' | t: amount: '{{amount}}' | escape }}"
+    data-text-save="{{ 'volume_tiers.save' | t | escape }}"
     data-text-standard="{{ 'volume_tiers.standard_price' | t }}"
     data-text-buy-one="{{ 'volume_tiers.buy_one' | t }}"
     style="
