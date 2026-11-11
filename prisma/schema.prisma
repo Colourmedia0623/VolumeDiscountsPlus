@@ -41,7 +41,10 @@ model Offer {
   shop        String
   title       String
   status      String   @default("ACTIVE") // ACTIVE | DRAFT
-  discountId  String?  // gid://shopify/DiscountAutomaticNode/...
+  discountId  String?  // gid://shopify/DiscountAutomaticNode/... (app Function discount)
+  // JSON array of built-in automatic discount ids, one per tier. Used instead
+  // of discountId on stores that can't run Functions from a custom app.
+  builtinDiscountIds String?
   config      String   // JSON, see app/lib/offers.ts
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -52,4 +55,7 @@ model Offer {
 model ShopSettings {
   shop      String @id
   settings  String // JSON widget styling, see app/lib/offers.ts
+  // "function" or "builtin": which discount engine works on this store.
+  // Null until the first offer is saved.
+  discountEngine String?
 }

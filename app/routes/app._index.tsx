@@ -69,7 +69,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               ? `Ends ${formatDate(o.config.endsAt, dateFormat)}`
               : "",
       tierCount: o.config.tiers.length,
-      discountId: o.discountId ? o.discountId.split("/").pop() : null,
+      // One app discount, or a set of built-in ones (then open the discounts list).
+      discountUrl: o.discountId
+        ? `shopify://admin/discounts/${o.discountId.split("/").pop()}`
+        : o.builtinDiscountIds
+          ? "shopify://admin/discounts"
+          : null,
     })),
     // Opens the theme editor on a product page with our block ready to drop in.
     themeEditorUrl: `https://admin.shopify.com/store/${shopHandle}/themes/current/editor?template=product&addAppBlockId=${apiKey}/volume-tiers&target=mainSection`,
@@ -295,12 +300,12 @@ export default function Offers() {
                     </s-table-cell>
                     <s-table-cell>
                       <s-stack direction="inline" gap="small-300">
-                        {offer.discountId && (
+                        {offer.discountUrl && (
                           <s-button
                             variant="tertiary"
                             icon="view"
                             accessibilityLabel={`View ${offer.title} in Shopify discounts`}
-                            href={`shopify://admin/discounts/${offer.discountId}`}
+                            href={offer.discountUrl}
                             target="_top"
                           />
                         )}
