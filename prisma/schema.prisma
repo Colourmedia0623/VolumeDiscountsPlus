@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// A quantity-break offer. The tier/scope config lives here as JSON and is
+// mirrored to Shopify (discount metafield for the Function, app metafield for
+// the storefront widget) every time the offer is saved.
+model Offer {
+  id          Int      @id @default(autoincrement())
+  shop        String
+  title       String
+  status      String   @default("ACTIVE") // ACTIVE | DRAFT
+  discountId  String?  // gid://shopify/DiscountAutomaticNode/...
+  config      String   // JSON, see app/lib/offers.ts
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([shop])
+}
+
+model ShopSettings {
+  shop      String @id
+  settings  String // JSON widget styling, see app/lib/offers.ts
+}

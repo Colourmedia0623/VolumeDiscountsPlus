@@ -1,0 +1,22 @@
+api_version = "2026-07"
+
+[[extensions]]
+name = "t:name"
+handle = "volume-discount-function"
+type = "function"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart-lines-discounts-generate-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  # The collection IDs an offer targets are passed into the input query as
+  # variables, so the function can ask Shopify "is this product in any of them?"
+  [extensions.input.variables]
+  namespace = "$app:volume-discount"
+  key = "function-input"

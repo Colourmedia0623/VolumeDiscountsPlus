@@ -1,0 +1,91 @@
+{%- comment -%}
+  Volume discount tiers block. Offer data is published by the app to an
+  app-data metafield; the matching offer is chosen in volume-tiers.js because
+  it depends on product, collection and schedule.
+{%- endcomment -%}
+{%- assign vdp_product = block.settings.product | default: product -%}
+{%- assign vdp_data = app.metafields.volume_discounts.offers.value -%}
+
+{%- if vdp_product and vdp_data -%}
+  {%- assign vdp_settings = vdp_data.settings -%}
+  <div
+    class="vdp-tiers vdp-tiers--{{ vdp_settings.layout | default: 'stack' }}"
+    data-vdp-root
+    data-section-id="{{ section.id }}"
+    data-money-format="{{ shop.money_format | escape }}"
+    data-text-each="{{ 'volume_tiers.each' | t }}"
+    data-text-save="{{ 'volume_tiers.save' | t: amount: '{{amount}}' | escape }}"
+    data-text-standard="{{ 'volume_tiers.standard_price' | t }}"
+    data-text-buy-one="{{ 'volume_tiers.buy_one' | t }}"
+    style="
+      --vdp-accent: {{ vdp_settings.accentColor | default: '#1f6f5c' }};
+      --vdp-text: {{ vdp_settings.textColor | default: '#1a1a1a' }};
+      --vdp-bg: {{ vdp_settings.backgroundColor | default: '#ffffff' }};
+      --vdp-bg-selected: {{ vdp_settings.selectedBackgroundColor | default: '#eef7f4' }};
+      --vdp-badge: {{ vdp_settings.badgeColor | default: '#f2b134' }};
+      --vdp-badge-text: {{ vdp_settings.badgeTextColor | default: '#1a1a1a' }};
+      --vdp-radius: {{ vdp_settings.borderRadius | default: 10 }}px;
+      margin-top: {{ block.settings.margin_top }}px;
+      margin-bottom: {{ block.settings.margin_bottom }}px;
+    "
+    hidden
+  >
+    <script type="application/json" data-vdp-offers>{{ vdp_data | json }}</script>
+    <script type="application/json" data-vdp-product>
+      {
+        "id": {{ vdp_product.id }},
+        "collections": {{ vdp_product.collections | map: 'id' | json }},
+        "selectedVariant": {{ vdp_product.selected_or_first_available_variant.id | json }},
+        "variants": [
+          {%- for v in vdp_product.variants -%}
+            { "id": {{ v.id }}, "price": {{ v.price }} }{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        ]
+      }
+    </script>
+    <div class="vdp-tiers__heading" data-vdp-heading></div>
+    <div class="vdp-tiers__list" role="radiogroup" data-vdp-list></div>
+  </div>
+  {{ 'volume-tiers.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'volume-tiers.js' | asset_url }}" defer></script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Volume discount tiers",
+  "target": "section",
+  "enabled_on": { "templates": ["product"] },
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "autofill": true
+    },
+    {
+      "type": "paragraph",
+      "content": "Tiers, colours and layout are managed in the Volume Discounts Plus app."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Space above",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Space below",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    }
+  ]
+}
+{% endschema %}

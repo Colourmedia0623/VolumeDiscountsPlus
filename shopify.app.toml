@@ -1,0 +1,37 @@
+# Shopify app configuration.
+# Run `shopify app config link` to connect this project to your app in the
+# Partner Dashboard; it fills in client_id and the URLs below.
+client_id = "00000000000000000000000000000000"
+name = "Volume Discounts Plus"
+application_url = "https://example.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
+
+[access_scopes]
+# write_discounts: create the automatic discounts that run our Function.
+# read_products: product/collection pickers in the offer editor.
+scopes = "write_discounts,read_products"
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[webhooks]
+api_version = "2026-10"
+
+  # Handled by: /app/routes/webhooks.app.uninstalled.tsx
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  # Handled by: /app/routes/webhooks.app.scopes_update.tsx
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  # Mandatory compliance topics, required before listing on the App Store.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
