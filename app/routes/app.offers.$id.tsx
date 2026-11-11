@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -48,6 +48,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       id: null,
       title: "",
       status: "ACTIVE" as const,
+      samplePrice: null as number | null,
       // New offers start from the store's default style.
       config: { ...defaultOfferConfig(), style: settings },
       settings,
@@ -60,16 +61,49 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     where: { id: Number(params.id), shop: session.shop },
   });
   if (!offer) throw redirect("/app");
+  const config = parseConfig(offer.config);
   return {
+    samplePrice:
+      config.scope === "products" && config.products[0]
+        ? await productPrice(admin, config.products[0].id)
+        : null,
     id: offer.id,
     title: offer.title,
     status: offer.status as "ACTIVE" | "DRAFT",
-    config: parseConfig(offer.config),
+    config,
     settings,
     currency,
     builtin,
   };
 };
+
+/** Lowest variant price of a product, for the preview. */
+async function productPrice(
+  admin: {
+    graphql: (
+      q: string,
+      o?: { variables?: Record<string, unknown> },
+    ) => Promise<Response>;
+  },
+  id: string,
+): Promise<number | null> {
+  try {
+    const res = await admin.graphql(
+      `#graphql
+      query VdpProductPrice($id: ID!) {
+        product(id: $id) { priceRangeV2 { minVariantPrice { amount } } }
+      }`,
+      { variables: { id } },
+    );
+    const json = await res.json();
+    const amount = Number(
+      json.data?.product?.priceRangeV2?.minVariantPrice?.amount,
+    );
+    return amount > 0 ? amount : null;
+  } catch {
+    return null;
+  }
+}
 
 async function shopCurrency(admin: {
   graphql: (q: string) => Promise<Response>;
@@ -148,13 +182,21 @@ export default function OfferEditor() {
   const [status, setStatus] = useState(loaded.status);
   const [config, setConfig] = useState<OfferConfig>(loaded.config);
   const [openTier, setOpenTier] = useState<number | null>(loaded.id ? null : 0);
-  const [samplePrice, setSamplePrice] = useState(25);
+  // The first selected product's real price, or £25 as an example.
+  const [samplePrice, setSamplePrice] = useState(loaded.samplePrice ?? 25);
   const settings: WidgetSettings = loaded.settings;
   const style = config.style ?? settings;
   const money = moneyFormatter(loaded.currency, false, settings.currencyFormat);
 
   const saving = fetcher.state !== "idle";
-  const errors = fetcher.data?.errors ?? [];
+  // Errors from the last save, hidden again once the name is edited.
+  const [errorsSeen, setErrorsSeen] = useState(false);
+  const errors = errorsSeen ? [] : (fetcher.data?.errors ?? []);
+  const titleField = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
+  const onTitle = (value: string) => {
+    setTitle(value);
+    setErrorsSeen(true);
+  };
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && "saved" in fetcher.data) {
@@ -238,6 +280,10 @@ export default function OfferEditor() {
       filter: { variants: false },
     });
     if (!selected) return;
+    const price = Number(
+      "variants" in selected[0] ? selected[0].variants?.[0]?.price : NaN,
+    );
+    if (price > 0) setSamplePrice(price);
     update({
       products: selected.map((p) => ({
         id: p.id,
@@ -260,8 +306,12 @@ export default function OfferEditor() {
   };
 
   const save = () => {
+    // Read the field itself too, in case autofill changed it without an input event.
+    const currentTitle = titleField.current?.value ?? title;
+    if (currentTitle !== title) setTitle(currentTitle);
+    setErrorsSeen(false);
     fetcher.submit(
-      { title, status, config: JSON.stringify(config) },
+      { title: currentTitle, status, config: JSON.stringify(config) },
       { method: "POST" },
     );
   };
@@ -330,8 +380,10 @@ export default function OfferEditor() {
               label="Offer name"
               details="Only you see this. It's also the discount's name in Shopify admin."
               placeholder="e.g. 11oz white mugs bulk pricing"
+              ref={titleField}
               value={title}
-              onInput={(e) => setTitle(e.currentTarget.value)}
+              onInput={(e) => onTitle(e.currentTarget.value)}
+              onChange={(e) => onTitle(e.currentTarget.value)}
             />
             <s-select
               label="Status"
@@ -979,6 +1031,11 @@ export default function OfferEditor() {
           />
           <s-number-field
             label="Sample price for one item"
+            details={
+              config.scope === "products" && config.products[0]
+                ? `Starts at ${config.products[0].title}’s price. Change it to try others.`
+                : "Pick specific products to use a real price."
+            }
             min={0}
             step={0.01}
             suffix={loaded.currency}
