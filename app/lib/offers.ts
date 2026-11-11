@@ -282,7 +282,7 @@ export function defaultOfferConfig(): OfferConfig {
     unitName: "items",
     showDiscountTag: true,
     discountTagText: "{discount} OFF",
-    priceDisplay: "total",
+    priceDisplay: "each",
     eachPriceText: "each",
     showCompareAt: true,
     showTotal: false,
