@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       store:
-        description: "Which store's copy: dyesub (Dye Sublimation Store) or giftboxes (giftboxes.co.uk)"
+        description: "Which copy: dyesub (Dye Sublimation Store), giftboxes (giftboxes.co.uk) or public (the App Store app for any store)"
         type: choice
-        options: [dyesub, giftboxes]
+        options: [dyesub, giftboxes, public]
         default: dyesub
       allow_deletes:
         description: "Allow removing extensions that are no longer in the repo"
@@ -31,7 +31,7 @@ jobs:
       - run: npm install -g @shopify/cli@latest
       - name: Deploy app version
         env:
-          SHOPIFY_APP_AUTOMATION_TOKEN: ${{ inputs.store == 'giftboxes' && secrets.SHOPIFY_GIFTBOXES_AUTOMATION_TOKEN || secrets.SHOPIFY_DYESUB_AUTOMATION_TOKEN }}
+          SHOPIFY_APP_AUTOMATION_TOKEN: ${{ inputs.store == 'public' && secrets.SHOPIFY_PUBLIC_AUTOMATION_TOKEN || inputs.store == 'giftboxes' && secrets.SHOPIFY_GIFTBOXES_AUTOMATION_TOKEN || secrets.SHOPIFY_DYESUB_AUTOMATION_TOKEN }}
           CONFIG: ${{ inputs.store }}
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           DELETES: ${{ inputs.allow_deletes && '--allow-deletes' || '' }}

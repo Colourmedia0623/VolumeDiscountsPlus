@@ -6,14 +6,16 @@ loaded onto the EC2 instance and restarted with Docker Compose. Only the
 `deploy/` folder is copied to the server. Caddy serves each address over
 HTTPS, with certificates it fetches and renews itself.
 
-There's no public app. Each store gets its own **private, free copy**
-(custom distribution). Each copy has its own Shopify app, address and
+Each store gets its own **private, free copy** (custom distribution), and
+there's also a **public copy** for the Shopify App Store (see "Public App
+Store copy" below). Each copy has its own Shopify app, address and
 database, and they all run from the same image on one instance:
 
 | Copy | Store | Config | Address |
 | --- | --- | --- | --- |
 | `dyesub` | Dye Sublimation Store | `shopify.app.dyesub.toml` | `dyesub.volumediscounts.colourmedia.net` |
 | `giftboxes` | giftboxes.co.uk | `shopify.app.giftboxes.toml` | `giftboxes.volumediscounts.colourmedia.net` |
+| `public` | any store, from the App Store | `shopify.app.public.toml` | `app.volumediscounts.colourmedia.net` |
 
 There's no billing code, so neither store pays anything.
 
@@ -98,3 +100,31 @@ Copy one of the `shopify.app.*.toml` files and add a service, volume and
 profile in `deploy/docker-compose.yml`. Add the store to the loop and secrets
 in `.github/workflows/deploy.yml`, and to the choices in `shopify-config.yml`.
 Then follow steps 2–5 for it.
+
+## Public App Store copy
+
+Shopify only runs Functions from a **custom-distribution** app on Shopify
+Plus stores. Elsewhere the private copies fall back to Shopify's built-in
+automatic discounts, which can't do price rounding, set-price tiers or
+per-product counting. A **public** app runs Functions on every plan, so this
+copy brings all the features back. It is free and can be **unlisted**, so
+only people with the link can find it.
+
+1. **DNS:** add an A record `app.volumediscounts` pointing at the Elastic IP.
+2. **Dev Dashboard:** create a new app called **Volume Discounts Plus** and
+   choose **Public distribution**. A custom-distribution app can't be
+   switched to public, so this has to be a new app. Copy its **Client ID**
+   into `client_id` in `shopify.app.public.toml` and commit it. Generate an
+   **App Automation Token** under Settings.
+3. **GitHub secrets:** add `SHOPIFY_PUBLIC_API_SECRET` (the Client secret)
+   and `SHOPIFY_PUBLIC_AUTOMATION_TOKEN`. Under the **Variables** tab, add
+   `SUPPORT_EMAIL` with the support address you want shown on the privacy
+   page (`/privacy`).
+4. Run **Deploy to EC2**, then **Push Shopify app config** with `public`.
+5. In the Partner Dashboard, fill in the listing using
+   `docs/app-store-listing.md`. Set visibility to **Unlisted**, then submit
+   for review. Shopify reviews the app before it can be installed anywhere,
+   usually within a few weeks.
+6. Once approved, install it on each store from its listing. Recreate the
+   offers there, then uninstall that store's private copy so the two don't
+   both apply a discount.

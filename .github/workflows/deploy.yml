@@ -24,11 +24,14 @@ jobs:
         env:
           SHOPIFY_DYESUB_API_SECRET: ${{ secrets.SHOPIFY_DYESUB_API_SECRET }}
           SHOPIFY_GIFTBOXES_API_SECRET: ${{ secrets.SHOPIFY_GIFTBOXES_API_SECRET }}
+          SHOPIFY_PUBLIC_API_SECRET: ${{ secrets.SHOPIFY_PUBLIC_API_SECRET }}
+          # Optional repository variable: shown on the /privacy page.
+          SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
         run: |
           : > deploy/Caddyfile.stores
           profiles=
           hosts=
-          for store in dyesub giftboxes; do
+          for store in dyesub giftboxes public; do
             toml=shopify.app.$store.toml
             : > deploy/.env.$store
             secret_var="SHOPIFY_$(echo "$store" | tr a-z A-Z)_API_SECRET"
@@ -46,6 +49,7 @@ jobs:
               echo "SHOPIFY_API_SECRET=$secret"
               echo "SHOPIFY_APP_URL=$url"
               echo "SCOPES=$scopes"
+              echo "SUPPORT_EMAIL=$SUPPORT_EMAIL"
             } > deploy/.env.$store
             printf '%s {\n\treverse_proxy %s:3000\n}\n\n' "$host" "$store" >> deploy/Caddyfile.stores
             profiles="$profiles --profile $store"

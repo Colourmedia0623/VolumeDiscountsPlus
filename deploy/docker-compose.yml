@@ -2,7 +2,8 @@
 # GitHub's runners, loads it here as volumediscounts:latest, copies this
 # folder to /opt/volumediscounts/src/deploy and writes the .env.* files.
 #
-# One private, free copy of the app per store, each with its own Shopify app
+# One private, free copy of the app per store, plus the public copy that any
+# store can install from the App Store. Each has its own Shopify app
 # credentials and database. A copy only runs once its app is set up (its
 # profile is switched on by the deploy).
 services:
@@ -28,6 +29,17 @@ services:
       - giftboxes-data:/data
     restart: unless-stopped
 
+  public:
+    image: volumediscounts:latest
+    pull_policy: never
+    profiles: [public]
+    env_file: .env.public
+    environment:
+      PORT: "3000"
+    volumes:
+      - public-data:/data
+    restart: unless-stopped
+
   caddy:
     image: caddy:2.10
     ports:
@@ -42,4 +54,5 @@ services:
 volumes:
   dyesub-data:
   giftboxes-data:
+  public-data:
   caddy-data:
