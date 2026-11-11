@@ -1,0 +1,54 @@
+# Runs both stores' app servers on one machine, behind Caddy for HTTPS.
+# Usage (on the server, from this folder):
+#   cp .env.example .env   # then fill it in
+#   docker compose up -d --build
+services:
+  dyesub:
+    build: ../..
+    restart: unless-stopped
+    environment:
+      SHOPIFY_API_KEY: ${DYESUB_API_KEY}
+      SHOPIFY_API_SECRET: ${DYESUB_API_SECRET}
+      SHOPIFY_APP_URL: https://${DYESUB_DOMAIN}
+      SCOPES: write_discounts,read_products
+      PORT: "3000"
+    # Also reachable on the server itself, for setups using an existing nginx.
+    ports:
+      - "127.0.0.1:3101:3000"
+    volumes:
+      - dyesub-data:/data
+
+  giftboxes:
+    build: ../..
+    restart: unless-stopped
+    environment:
+      SHOPIFY_API_KEY: ${GIFTBOXES_API_KEY}
+      SHOPIFY_API_SECRET: ${GIFTBOXES_API_SECRET}
+      SHOPIFY_APP_URL: https://${GIFTBOXES_DOMAIN}
+      SCOPES: write_discounts,read_products
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3102:3000"
+    volumes:
+      - giftboxes-data:/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DYESUB_DOMAIN: ${DYESUB_DOMAIN}
+      GIFTBOXES_DOMAIN: ${GIFTBOXES_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - dyesub
+      - giftboxes
+
+volumes:
+  dyesub-data:
+  giftboxes-data:
+  caddy-data:

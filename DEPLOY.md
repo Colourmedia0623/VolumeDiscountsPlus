@@ -51,6 +51,36 @@ Set these environment variables on each deployment:
 | `SCOPES` | `write_discounts,read_products` |
 | `PORT` | `3000` |
 
+### On your AWS (EC2) server, both stores on one machine
+
+`deploy/aws/` runs both app servers plus [Caddy](https://caddyserver.com/), which
+handles HTTPS certificates for you. It needs about 512 MB of free memory.
+
+1. **DNS:** create two subdomains, e.g. `vdp-dyesub.yourdomain.co.uk` and
+   `vdp-giftboxes.yourdomain.co.uk`. Point each one (an A record) at the
+   server's public IP. An Elastic IP is best, so the address doesn't change.
+2. **Security group:** allow inbound ports 80 and 443.
+3. **On the server** (needs Docker with the compose plugin):
+
+   ```sh
+   git clone https://github.com/Colourmedia0623/VolumeDiscountsPlus.git
+   cd VolumeDiscountsPlus/deploy/aws
+   cp .env.example .env
+   nano .env        # put in the two subdomains and each app's Client ID / secret
+   docker compose up -d --build
+   ```
+
+4. Check that `https://vdp-dyesub.yourdomain.co.uk` loads a "Volume Discounts
+   Plus" page. Use those two URLs in step 3 below.
+
+**Already running nginx or Apache on ports 80/443?** Skip Caddy. Run
+`docker compose up -d --build dyesub giftboxes`, then proxy each subdomain in
+your existing web server to `http://127.0.0.1:3101` (dyesub) and
+`http://127.0.0.1:3102` (giftboxes).
+
+**Updating:** `git pull && docker compose up -d --build`. Offers are kept in
+Docker volumes, so they survive updates.
+
 ### On Render (using `render.yaml`)
 
 1. In Render, choose **New → Blueprint** and pick this repo. This creates

@@ -1,0 +1,8 @@
+# Caddy gets and renews the HTTPS certificates automatically.
+{$DYESUB_DOMAIN} {
+	reverse_proxy dyesub:3000
+}
+
+{$GIFTBOXES_DOMAIN} {
+	reverse_proxy giftboxes:3000
+}
