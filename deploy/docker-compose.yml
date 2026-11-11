@@ -1,0 +1,45 @@
+# Runs on the EC2 instance. The deploy workflow builds the app image on
+# GitHub's runners, loads it here as volumediscounts:latest, copies this
+# folder to /opt/volumediscounts/src/deploy and writes the .env.* files.
+#
+# One private, free copy of the app per store, each with its own Shopify app
+# credentials and database. A copy only runs once its app is set up (its
+# profile is switched on by the deploy).
+services:
+  dyesub:
+    image: volumediscounts:latest
+    pull_policy: never
+    profiles: [dyesub]
+    env_file: .env.dyesub
+    environment:
+      PORT: "3000"
+    volumes:
+      - dyesub-data:/data
+    restart: unless-stopped
+
+  giftboxes:
+    image: volumediscounts:latest
+    pull_policy: never
+    profiles: [giftboxes]
+    env_file: .env.giftboxes
+    environment:
+      PORT: "3000"
+    volumes:
+      - giftboxes-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.stores:/etc/caddy/Caddyfile.stores:ro
+      - caddy-data:/data
+    restart: unless-stopped
+
+volumes:
+  dyesub-data:
+  giftboxes-data:
+  caddy-data:

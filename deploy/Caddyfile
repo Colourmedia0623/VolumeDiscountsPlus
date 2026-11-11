@@ -1,0 +1,3 @@
+# Caddy gets and renews each store copy's HTTPS certificate automatically.
+# The deploy writes one site block per store copy that's set up.
+import Caddyfile.stores

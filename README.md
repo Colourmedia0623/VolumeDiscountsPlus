@@ -68,9 +68,9 @@ amount off, fixed price, and currency conversion.
 
 ### Deploying
 
-`shopify app deploy` pushes the Function and theme extension. The admin app needs
-hosting (any Node host; a `Dockerfile` is included). Swap SQLite for Postgres/MySQL
-in `prisma/schema.prisma` for production.
+See [deploy/README.md](deploy/README.md): each store gets a free private copy, run on EC2 like LoyaltyWise and GiftWise.
+
+
 
 ## Not built yet
 
