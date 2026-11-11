@@ -5,7 +5,12 @@ import type { CurrencyFormat, DateFormat } from "./formats";
 export type TierType = "percentage" | "amountOff" | "fixedPrice" | "none";
 /** Price ending the discounted unit price is rounded down to. "" = no rounding. */
 export type PriceEnding = "" | ".99" | ".95" | ".49" | ".00";
-export const PRICE_ENDINGS: Exclude<PriceEnding, "">[] = [".99", ".95", ".49", ".00"];
+export const PRICE_ENDINGS: Exclude<PriceEnding, "">[] = [
+  ".99",
+  ".95",
+  ".49",
+  ".00",
+];
 export type Scope = "all" | "products" | "collections";
 export type CountMode = "product" | "variant" | "combined";
 
@@ -128,15 +133,123 @@ type Palette = Pick<
 
 /** One-click colour schemes for the style editor. */
 export const PALETTES: { name: string; colors: Palette }[] = [
-  { name: "Evergreen", colors: { accentColor: "#1f6f5c", textColor: "#1a1a1a", backgroundColor: "#ffffff", selectedBackgroundColor: "#eef7f4", badgeColor: "#f2b134", badgeTextColor: "#1a1a1a", tagColor: "#1f6f5c", tagTextColor: "#ffffff" } },
-  { name: "Harbour", colors: { accentColor: "#0b4f8a", textColor: "#13263a", backgroundColor: "#f4f8fc", selectedBackgroundColor: "#e2eefa", badgeColor: "#ff8a3d", badgeTextColor: "#ffffff", tagColor: "#0b4f8a", tagTextColor: "#ffffff" } },
-  { name: "Midnight & apricot", colors: { accentColor: "#1d2b53", textColor: "#1d2b53", backgroundColor: "#edf2f4", selectedBackgroundColor: "#fde4cf", badgeColor: "#f59e0b", badgeTextColor: "#ffffff", tagColor: "#1d2b53", tagTextColor: "#ffffff" } },
-  { name: "Terracotta", colors: { accentColor: "#b4532a", textColor: "#2f2a26", backgroundColor: "#fffaf6", selectedBackgroundColor: "#fbe9de", badgeColor: "#2f2a26", badgeTextColor: "#ffffff", tagColor: "#b4532a", tagTextColor: "#ffffff" } },
-  { name: "Plum", colors: { accentColor: "#6b2d6b", textColor: "#2a1a2a", backgroundColor: "#ffffff", selectedBackgroundColor: "#f6ecf6", badgeColor: "#e0a800", badgeTextColor: "#2a1a2a", tagColor: "#6b2d6b", tagTextColor: "#ffffff" } },
-  { name: "Lagoon", colors: { accentColor: "#0f766e", textColor: "#123330", backgroundColor: "#f3faf9", selectedBackgroundColor: "#dcf1ee", badgeColor: "#f26b5b", badgeTextColor: "#ffffff", tagColor: "#0f766e", tagTextColor: "#ffffff" } },
-  { name: "Berry", colors: { accentColor: "#9d174d", textColor: "#2b1020", backgroundColor: "#ffffff", selectedBackgroundColor: "#fdecf3", badgeColor: "#9d174d", badgeTextColor: "#ffffff", tagColor: "#f9c74f", tagTextColor: "#2b1020" } },
-  { name: "Graphite", colors: { accentColor: "#222222", textColor: "#222222", backgroundColor: "#ffffff", selectedBackgroundColor: "#f1f1f1", badgeColor: "#e63946", badgeTextColor: "#ffffff", tagColor: "#222222", tagTextColor: "#ffffff" } },
-  { name: "Sand", colors: { accentColor: "#7a5c3a", textColor: "#3b2f22", backgroundColor: "#faf6ef", selectedBackgroundColor: "#f0e6d6", badgeColor: "#3b2f22", badgeTextColor: "#faf6ef", tagColor: "#7a5c3a", tagTextColor: "#ffffff" } },
+  {
+    name: "Evergreen",
+    colors: {
+      accentColor: "#1f6f5c",
+      textColor: "#1a1a1a",
+      backgroundColor: "#ffffff",
+      selectedBackgroundColor: "#eef7f4",
+      badgeColor: "#f2b134",
+      badgeTextColor: "#1a1a1a",
+      tagColor: "#1f6f5c",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Harbour",
+    colors: {
+      accentColor: "#0b4f8a",
+      textColor: "#13263a",
+      backgroundColor: "#f4f8fc",
+      selectedBackgroundColor: "#e2eefa",
+      badgeColor: "#ff8a3d",
+      badgeTextColor: "#ffffff",
+      tagColor: "#0b4f8a",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Midnight & apricot",
+    colors: {
+      accentColor: "#1d2b53",
+      textColor: "#1d2b53",
+      backgroundColor: "#edf2f4",
+      selectedBackgroundColor: "#fde4cf",
+      badgeColor: "#f59e0b",
+      badgeTextColor: "#ffffff",
+      tagColor: "#1d2b53",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Terracotta",
+    colors: {
+      accentColor: "#b4532a",
+      textColor: "#2f2a26",
+      backgroundColor: "#fffaf6",
+      selectedBackgroundColor: "#fbe9de",
+      badgeColor: "#2f2a26",
+      badgeTextColor: "#ffffff",
+      tagColor: "#b4532a",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Plum",
+    colors: {
+      accentColor: "#6b2d6b",
+      textColor: "#2a1a2a",
+      backgroundColor: "#ffffff",
+      selectedBackgroundColor: "#f6ecf6",
+      badgeColor: "#e0a800",
+      badgeTextColor: "#2a1a2a",
+      tagColor: "#6b2d6b",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Lagoon",
+    colors: {
+      accentColor: "#0f766e",
+      textColor: "#123330",
+      backgroundColor: "#f3faf9",
+      selectedBackgroundColor: "#dcf1ee",
+      badgeColor: "#f26b5b",
+      badgeTextColor: "#ffffff",
+      tagColor: "#0f766e",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Berry",
+    colors: {
+      accentColor: "#9d174d",
+      textColor: "#2b1020",
+      backgroundColor: "#ffffff",
+      selectedBackgroundColor: "#fdecf3",
+      badgeColor: "#9d174d",
+      badgeTextColor: "#ffffff",
+      tagColor: "#f9c74f",
+      tagTextColor: "#2b1020",
+    },
+  },
+  {
+    name: "Graphite",
+    colors: {
+      accentColor: "#222222",
+      textColor: "#222222",
+      backgroundColor: "#ffffff",
+      selectedBackgroundColor: "#f1f1f1",
+      badgeColor: "#e63946",
+      badgeTextColor: "#ffffff",
+      tagColor: "#222222",
+      tagTextColor: "#ffffff",
+    },
+  },
+  {
+    name: "Sand",
+    colors: {
+      accentColor: "#7a5c3a",
+      textColor: "#3b2f22",
+      backgroundColor: "#faf6ef",
+      selectedBackgroundColor: "#f0e6d6",
+      badgeColor: "#3b2f22",
+      badgeTextColor: "#faf6ef",
+      tagColor: "#7a5c3a",
+      tagTextColor: "#ffffff",
+    },
+  },
 ];
 
 export const DEFAULT_RIBBON = "Most popular";
@@ -201,7 +314,9 @@ export function parseConfig(json: string | null | undefined): OfferConfig {
         ? parsed.tiers.map((t: Partial<Tier>) => ({ ...newTier(1, 0), ...t }))
         : base.tiers,
       combinesWith: { ...base.combinesWith, ...(parsed.combinesWith ?? {}) },
-      style: parsed.style ? { ...DEFAULT_WIDGET_SETTINGS, ...parsed.style } : null,
+      style: parsed.style
+        ? { ...DEFAULT_WIDGET_SETTINGS, ...parsed.style }
+        : null,
     };
   } catch {
     return base;
@@ -229,7 +344,8 @@ export function validateOffer(title: string, config: OfferConfig): string[] {
     if (!Number.isInteger(t.minQty) || t.minQty < 1) {
       errors.push(`${n}: quantity must be a whole number of 1 or more.`);
     }
-    if (seen.has(t.minQty)) errors.push(`${n}: two tiers use quantity ${t.minQty}.`);
+    if (seen.has(t.minQty))
+      errors.push(`${n}: two tiers use quantity ${t.minQty}.`);
     seen.add(t.minQty);
     if (t.type === "none") {
       // No discount: nothing to check.
@@ -241,10 +357,14 @@ export function validateOffer(title: string, config: OfferConfig): string[] {
   });
 
   if (config.scope === "products" && !config.products.length) {
-    errors.push("Pick at least one product, or apply the offer to all products.");
+    errors.push(
+      "Pick at least one product, or apply the offer to all products.",
+    );
   }
   if (config.scope === "collections" && !config.collections.length) {
-    errors.push("Pick at least one collection, or apply the offer to all products.");
+    errors.push(
+      "Pick at least one collection, or apply the offer to all products.",
+    );
   }
   if (config.startsAt && config.endsAt && config.endsAt <= config.startsAt) {
     errors.push("The end date must be after the start date.");
@@ -283,7 +403,10 @@ export function functionInput(config: OfferConfig) {
 }
 
 /** Plain-English summary of one tier, used in the admin. */
-export function describeTier(t: Tier, money: (n: number) => string = (n) => n.toFixed(2)): string {
+export function describeTier(
+  t: Tier,
+  money: (n: number) => string = (n) => n.toFixed(2),
+): string {
   switch (t.type) {
     case "percentage":
       return `${t.value}% off`;
@@ -297,7 +420,10 @@ export function describeTier(t: Tier, money: (n: number) => string = (n) => n.to
 }
 
 /** Rounds a price (in minor units, e.g. pence) down to an ending like .99. */
-export function applyPriceEnding(cents: number, ending: PriceEnding | undefined): number {
+export function applyPriceEnding(
+  cents: number,
+  ending: PriceEnding | undefined,
+): number {
   if (!ending) return cents;
   const end = Math.round(Number(ending) * 100);
   const rounded = Math.floor((cents - end) / 100) * 100 + end;
@@ -328,7 +454,9 @@ export function discountedUnitPrice(unit: number, t: Tier | null): number {
 /** Total for `qty` items. Unrounded % tiers apply to the line total, like checkout. */
 export function tierTotal(unit: number, t: Tier | null, qty: number): number {
   if (t && t.type === "percentage" && !t.rounding) {
-    return Math.round(unit * qty * (1 - Math.min(t.value, 100) / 100) * 100) / 100;
+    return (
+      Math.round(unit * qty * (1 - Math.min(t.value, 100) / 100) * 100) / 100
+    );
   }
   return discountedUnitPrice(unit, t) * qty;
 }
@@ -340,10 +468,25 @@ export function tierTotal(unit: number, t: Tier | null, qty: number): number {
 export function rangeTitle(tiers: Tier[], i: number, unitName: string): string {
   const from = tiers[i].minQty;
   const next = tiers[i + 1]?.minQty;
-  const unit = unitName.trim();
+  let unit = unitName.trim();
+  // "1 item", not "1 items".
+  if (from === 1 && next === 2) unit = singular(unit);
   const range =
-    next === undefined ? `${from}+` : next - 1 <= from ? `${from}` : `${from} - ${next - 1}`;
+    next === undefined
+      ? `${from}+`
+      : next - 1 <= from
+        ? `${from}`
+        : `${from} - ${next - 1}`;
   return unit ? `${range} ${unit}` : range;
+}
+
+/** Rough singular for item names: "items" → "item", "boxes" → "box". */
+export function singular(word: string): string {
+  if (/(ss|us|is)$/i.test(word)) return word;
+  if (/(s|x|z|ch|sh)es$/i.test(word)) return word.slice(0, -2);
+  if (/ies$/i.test(word)) return word.slice(0, -3) + "y";
+  if (/s$/i.test(word)) return word.slice(0, -1);
+  return word;
 }
 
 /** Text inside the discount tag, e.g. "5% OFF". Empty when the tier has no discount. */
@@ -353,14 +496,21 @@ export function discountTag(
   unit: number,
   money: (n: number) => string,
 ): string {
-  if (!t || t.type === "none" || !(t.value > 0 || t.type === "fixedPrice")) return "";
+  if (!t || t.type === "none" || !(t.value > 0 || t.type === "fixedPrice"))
+    return "";
   let amount = "";
   if (t.type === "percentage") amount = `${t.value}%`;
   else if (t.type === "amountOff") amount = money(t.value);
   else {
-    const pct = unit > 0 ? Math.round((1 - discountedUnitPrice(unit, t) / unit) * 100) : 0;
+    const pct =
+      unit > 0
+        ? Math.round((1 - discountedUnitPrice(unit, t) / unit) * 100)
+        : 0;
     if (pct <= 0) return "";
     amount = `${pct}%`;
   }
-  return (config.discountTagText || "{discount} OFF").replace(/\{discount\}/g, amount);
+  return (config.discountTagText || "{discount} OFF").replace(
+    /\{discount\}/g,
+    amount,
+  );
 }

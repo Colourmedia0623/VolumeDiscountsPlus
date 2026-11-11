@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -154,7 +154,14 @@ export default function OfferEditor() {
   const money = moneyFormatter(loaded.currency, false, settings.currencyFormat);
 
   const saving = fetcher.state !== "idle";
-  const errors = fetcher.data?.errors ?? [];
+  // Errors from the last save, hidden again once the name is edited.
+  const [errorsSeen, setErrorsSeen] = useState(false);
+  const errors = errorsSeen ? [] : (fetcher.data?.errors ?? []);
+  const titleField = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
+  const onTitle = (value: string) => {
+    setTitle(value);
+    setErrorsSeen(true);
+  };
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && "saved" in fetcher.data) {
@@ -260,8 +267,12 @@ export default function OfferEditor() {
   };
 
   const save = () => {
+    // Read the field itself too, in case autofill changed it without an input event.
+    const currentTitle = titleField.current?.value ?? title;
+    if (currentTitle !== title) setTitle(currentTitle);
+    setErrorsSeen(false);
     fetcher.submit(
-      { title, status, config: JSON.stringify(config) },
+      { title: currentTitle, status, config: JSON.stringify(config) },
       { method: "POST" },
     );
   };
@@ -330,8 +341,10 @@ export default function OfferEditor() {
               label="Offer name"
               details="Only you see this. It's also the discount's name in Shopify admin."
               placeholder="e.g. 11oz white mugs bulk pricing"
+              ref={titleField}
               value={title}
-              onInput={(e) => setTitle(e.currentTarget.value)}
+              onInput={(e) => onTitle(e.currentTarget.value)}
+              onChange={(e) => onTitle(e.currentTarget.value)}
             />
             <s-select
               label="Status"

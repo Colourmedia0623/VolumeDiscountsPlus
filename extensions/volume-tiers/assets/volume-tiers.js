@@ -141,6 +141,14 @@
     var next = bands[i + 1] && bands[i + 1].minQty;
     var range = next === undefined ? from + "+" : next - 1 <= from ? String(from) : from + " - " + (next - 1);
     var unit = (unitName || "").trim();
+    // "1 item", not "1 items" (same as singular() in app/lib/offers.ts).
+    if (from === 1 && next === 2 && !/(ss|us|is)$/i.test(unit)) {
+      unit = /(s|x|z|ch|sh)es$/i.test(unit)
+        ? unit.slice(0, -2)
+        : /ies$/i.test(unit)
+          ? unit.slice(0, -3) + "y"
+          : unit.replace(/s$/i, "");
+    }
     return unit ? range + " " + unit : range;
   }
 
