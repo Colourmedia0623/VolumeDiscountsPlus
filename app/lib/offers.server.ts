@@ -233,6 +233,17 @@ export async function setOfferStatus(
   });
 }
 
+/** Copies an offer (and creates its own discount), paused so it can be edited first. */
+export async function duplicateOffer(admin: Admin, shop: string, id: number) {
+  const offer = await prisma.offer.findFirst({ where: { id, shop } });
+  if (!offer) return null;
+  return saveOffer(admin, shop, {
+    title: `${offer.title} (copy)`,
+    status: "DRAFT",
+    config: parseConfig(offer.config),
+  });
+}
+
 export async function deleteOffer(admin: Admin, shop: string, id: number) {
   const offer = await prisma.offer.findFirst({ where: { id, shop } });
   if (!offer) return;
