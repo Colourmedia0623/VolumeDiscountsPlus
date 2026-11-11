@@ -145,7 +145,7 @@
   }
 
   function discountTag(template, tier, unit, moneyFormat) {
-    if (!tier || tier.type === "none") return "";
+    if (!tier || tier.type === "none" || !(tier.value > 0 || tier.type === "fixedPrice")) return "";
     var amount;
     if (tier.type === "percentage") amount = tier.value + "%";
     else if (tier.type === "amountOff") amount = formatMoney(tier.value * 100 * currencyRate(), moneyFormat);

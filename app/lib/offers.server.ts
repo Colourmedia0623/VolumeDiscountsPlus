@@ -3,6 +3,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
 import {
   functionConfiguration,
+  rangeTitle,
   functionInput,
   parseConfig,
   parseSettings,
@@ -119,7 +120,10 @@ async function createDiscount(
       }
     }`,
     {
-      discount: { ...discountInput(title, config, status), functionHandle: FUNCTION_HANDLE },
+      discount: {
+        ...discountInput(title, config, status),
+        functionHandle: FUNCTION_HANDLE,
+      },
     },
   );
   throwUserErrors(data.discountAutomaticAppCreate.userErrors);
@@ -162,9 +166,142 @@ async function deleteDiscount(admin: Admin, id: string) {
   );
   // Already deleted in Shopify admin? That's fine.
   const errs = data.discountAutomaticDelete.userErrors ?? [];
-  if (errs.length && !errs.some((e: any) => /not exist|not found/i.test(e.message))) {
+  if (
+    errs.length &&
+    !errs.some((e: any) => /not exist|not found/i.test(e.message))
+  ) {
     throwUserErrors(errs);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Built-in discounts
+//
+// Shopify only runs Functions from a custom-distribution app on Shopify Plus
+// stores. Elsewhere each tier becomes an ordinary automatic discount with a
+// minimum quantity. They don't combine with each other, so at checkout
+// Shopify applies the best tier the cart qualifies for.
+// ---------------------------------------------------------------------------
+
+export type DiscountEngine = "function" | "builtin";
+
+const PLUS_ONLY = /shopify plus/i;
+
+export async function getDiscountEngine(
+  shop: string,
+): Promise<DiscountEngine | null> {
+  const row = await prisma.shopSettings.findUnique({ where: { shop } });
+  return (row?.discountEngine as DiscountEngine | null) ?? null;
+}
+
+async function setDiscountEngine(shop: string, engine: DiscountEngine) {
+  await prisma.shopSettings.upsert({
+    where: { shop },
+    create: { shop, settings: "{}", discountEngine: engine },
+    update: { discountEngine: engine },
+  });
+}
+
+/** Tiers that become a built-in discount (skips "No discount" and 0% tiers). */
+function builtinTiers(config: OfferConfig) {
+  const sorted = sortTiers(config.tiers);
+  return sorted
+    .map((t, i) => ({
+      tier: t,
+      title: t.title || rangeTitle(sorted, i, config.unitName),
+    }))
+    .filter(({ tier }) => tier.type !== "none" && tier.value > 0);
+}
+
+function builtinItems(config: OfferConfig) {
+  if (config.scope === "products") {
+    return { products: { productsToAdd: config.products.map((p) => p.id) } };
+  }
+  if (config.scope === "collections") {
+    return { collections: { add: config.collections.map((c) => c.id) } };
+  }
+  return { all: true };
+}
+
+async function createBuiltinDiscounts(
+  admin: Admin,
+  title: string,
+  config: OfferConfig,
+  status: Status,
+): Promise<string[]> {
+  const base = discountInput(title, config, status);
+  const ids: string[] = [];
+  for (const { tier, title: tierTitle } of builtinTiers(config)) {
+    const value =
+      tier.type === "percentage"
+        ? { percentage: Math.min(tier.value, 100) / 100 }
+        : {
+            discountAmount: {
+              amount: tier.value.toFixed(2),
+              appliesOnEachItem: true,
+            },
+          };
+    const data = await gql(
+      admin,
+      `#graphql
+      mutation VdpCreateBuiltin($discount: DiscountAutomaticBasicInput!) {
+        discountAutomaticBasicCreate(automaticBasicDiscount: $discount) {
+          automaticDiscountNode { id }
+          userErrors { field message }
+        }
+      }`,
+      {
+        discount: {
+          // Shown to shoppers in cart and checkout.
+          title:
+            tier.label ||
+            config.message.replace(/\{qty\}/g, String(tier.minQty)) ||
+            `${title}: ${tierTitle}`,
+          startsAt: base.startsAt,
+          endsAt: base.endsAt,
+          // Tiers must never stack with each other.
+          combinesWith: { ...config.combinesWith, productDiscounts: false },
+          minimumRequirement: {
+            quantity: { greaterThanOrEqualToQuantity: String(tier.minQty) },
+          },
+          customerGets: { value, items: builtinItems(config) },
+        },
+      },
+    );
+    try {
+      throwUserErrors(data.discountAutomaticBasicCreate.userErrors);
+    } catch (e) {
+      // Don't leave half an offer behind.
+      await deleteBuiltinDiscounts(admin, ids);
+      throw e;
+    }
+    ids.push(data.discountAutomaticBasicCreate.automaticDiscountNode.id);
+  }
+  return ids;
+}
+
+async function deleteBuiltinDiscounts(admin: Admin, ids: string[]) {
+  for (const id of ids) await deleteDiscount(admin, id);
+}
+
+function parseIds(json: string | null | undefined): string[] {
+  try {
+    const ids = JSON.parse(json ?? "[]");
+    return Array.isArray(ids) ? ids.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Problems that only apply when the store uses built-in discounts. */
+export function builtinProblems(config: OfferConfig): string[] {
+  const errors: string[] = [];
+  if (config.tiers.some((t) => t.type === "fixedPrice")) {
+    errors.push(
+      "“Set price” tiers need Shopify Plus on this store. Use % off or Amount off instead.",
+    );
+  }
+  return errors;
 }
 
 /** Creates or updates an offer and its Shopify discount, then republishes the widget data. */
@@ -175,37 +312,94 @@ export async function saveOffer(
 ) {
   // Store tiers in quantity order, keeping the preselected tier pointing at
   // the same tier after sorting.
-  const tiers = sortTiers(input.config.tiers);
-  const preselected = input.config.tiers[input.config.preselectTier];
+  // A 0% or £0 tier is the same as "No discount".
+  const tiers = sortTiers(
+    input.config.tiers.map((t) =>
+      t.type !== "none" && t.type !== "fixedPrice" && !(t.value > 0)
+        ? { ...t, type: "none" as const }
+        : t,
+    ),
+  );
+  const preselectedIndex = input.config.preselectTier;
+  const order = input.config.tiers
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => a.t.minQty - b.t.minQty);
   const config = {
     ...input.config,
     tiers,
-    preselectTier: preselected ? tiers.indexOf(preselected) : -1,
+    preselectTier: order.findIndex((o) => o.i === preselectedIndex),
   };
   const existing = input.id
     ? await prisma.offer.findFirst({ where: { id: input.id, shop } })
     : null;
 
+  let engine = await getDiscountEngine(shop);
   let discountId = existing?.discountId ?? null;
-  if (discountId) {
+  let builtinIds = parseIds(existing?.builtinDiscountIds);
+
+  if (engine !== "builtin") {
     try {
-      await updateDiscount(admin, discountId, input.title, config, input.status);
+      if (discountId) {
+        try {
+          await updateDiscount(
+            admin,
+            discountId,
+            input.title,
+            config,
+            input.status,
+          );
+        } catch (e) {
+          // Discount was deleted in Shopify admin: make a new one.
+          if (!(
+            e instanceof ShopifyUserError &&
+            /not exist|not found/i.test(e.message)
+          ))
+            throw e;
+          discountId = null;
+        }
+      }
+      if (!discountId) {
+        discountId = await createDiscount(
+          admin,
+          input.title,
+          config,
+          input.status,
+        );
+      }
+      await setDiscountMetafields(admin, discountId, config);
+      if (engine !== "function") await setDiscountEngine(shop, "function");
+      engine = "function";
     } catch (e) {
-      // Discount was deleted in Shopify admin: make a new one.
-      if (!(e instanceof ShopifyUserError && /not exist|not found/i.test(e.message))) throw e;
+      if (!(e instanceof ShopifyUserError && PLUS_ONLY.test(e.message)))
+        throw e;
+      // Not on Shopify Plus: switch this store to built-in discounts.
+      if (discountId) await deleteDiscount(admin, discountId);
       discountId = null;
+      await setDiscountEngine(shop, "builtin");
+      engine = "builtin";
     }
   }
-  if (!discountId) {
-    discountId = await createDiscount(admin, input.title, config, input.status);
+
+  if (engine === "builtin") {
+    const problems = builtinProblems(config);
+    if (problems.length) throw new ShopifyUserError(problems);
+    // Simplest to replace them all; tiers may have been added or removed.
+    await deleteBuiltinDiscounts(admin, builtinIds);
+    builtinIds = await createBuiltinDiscounts(
+      admin,
+      input.title,
+      config,
+      input.status,
+    );
   }
-  await setDiscountMetafields(admin, discountId, config);
 
   const data = {
     shop,
     title: input.title,
     status: input.status,
     discountId,
+    builtinDiscountIds:
+      engine === "builtin" ? JSON.stringify(builtinIds) : null,
     config: JSON.stringify(config),
   };
   const offer = existing
@@ -248,6 +442,7 @@ export async function deleteOffer(admin: Admin, shop: string, id: number) {
   const offer = await prisma.offer.findFirst({ where: { id, shop } });
   if (!offer) return;
   if (offer.discountId) await deleteDiscount(admin, offer.discountId);
+  await deleteBuiltinDiscounts(admin, parseIds(offer.builtinDiscountIds));
   await prisma.offer.delete({ where: { id } });
   await publishWidgetData(admin, shop);
 }
@@ -276,13 +471,16 @@ export async function saveSettings(
  * the theme block can render without calling our server.
  */
 export async function publishWidgetData(admin: Admin, shop: string) {
-  const [offers, settings] = await Promise.all([
+  const [offers, settings, engine] = await Promise.all([
     prisma.offer.findMany({
       where: { shop, status: "ACTIVE" },
       orderBy: { createdAt: "asc" },
     }),
     getSettings(shop),
+    getDiscountEngine(shop),
   ]);
+  // Built-in discounts can't round prices, so the widget mustn't either.
+  const canRound = engine !== "builtin";
 
   const now = new Date().toISOString();
   const payload = {
@@ -322,7 +520,7 @@ export async function publishWidgetData(admin: Admin, shop: string) {
           minQty: t.minQty,
           type: t.type,
           value: t.value,
-          rounding: t.rounding,
+          rounding: canRound ? t.rounding : "",
           title: t.title,
           subtitle: t.subtitle,
           badge: t.badge,

@@ -31,6 +31,7 @@ import {
 } from "../lib/offers";
 import {
   ShopifyUserError,
+  getDiscountEngine,
   getSettings,
   saveOffer,
 } from "../lib/offers.server";
@@ -40,6 +41,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const settings = await getSettings(session.shop);
   const currency = await shopCurrency(admin);
+  const builtin = (await getDiscountEngine(session.shop)) === "builtin";
 
   if (params.id === "new") {
     return {
@@ -50,6 +52,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       config: { ...defaultOfferConfig(), style: settings },
       settings,
       currency,
+      builtin,
     };
   }
 
@@ -64,10 +67,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     config: parseConfig(offer.config),
     settings,
     currency,
+    builtin,
   };
 };
 
-async function shopCurrency(admin: { graphql: (q: string) => Promise<Response> }) {
+async function shopCurrency(admin: {
+  graphql: (q: string) => Promise<Response>;
+}) {
   try {
     const res = await admin.graphql(`#graphql
       query VdpShopCurrency { shop { currencyCode } }`);
@@ -103,7 +109,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 };
 
-const TIER_TYPES: { value: TierType; label: string; icon: "discount" | "cash-pound" | "price-list" | "x-circle" }[] = [
+const TIER_TYPES: {
+  value: TierType;
+  label: string;
+  icon: "discount" | "cash-pound" | "price-list" | "x-circle";
+}[] = [
   { value: "percentage", label: "% off", icon: "discount" },
   { value: "amountOff", label: "Amount off", icon: "cash-pound" },
   { value: "fixedPrice", label: "Set price", icon: "price-list" },
@@ -197,7 +207,11 @@ export default function OfferEditor() {
       return {
         ...c,
         tiers: c.tiers.map((t, j) =>
-          j === i ? { ...t, badge: on ? DEFAULT_RIBBON : "" } : on && t.badge === DEFAULT_RIBBON ? { ...t, badge: "" } : t,
+          j === i
+            ? { ...t, badge: on ? DEFAULT_RIBBON : "" }
+            : on && t.badge === DEFAULT_RIBBON
+              ? { ...t, badge: "" }
+              : t,
         ),
       };
     });
@@ -207,7 +221,11 @@ export default function OfferEditor() {
       ...c,
       tiers: c.tiers.filter((_, j) => j !== i),
       preselectTier:
-        c.preselectTier === i ? -1 : c.preselectTier > i ? c.preselectTier - 1 : c.preselectTier,
+        c.preselectTier === i
+          ? -1
+          : c.preselectTier > i
+            ? c.preselectTier - 1
+            : c.preselectTier,
     }));
     setOpenTier(null);
   };
@@ -251,7 +269,10 @@ export default function OfferEditor() {
   // Tiers are edited in the order entered but labelled by their sorted range.
   const sorted = sortTiers(config.tiers);
   const autoTitle = (t: Tier) => {
-    const bands = config.showSingleTier && sorted[0]?.minQty > 1 ? [{ minQty: 1 } as Tier, ...sorted] : sorted;
+    const bands =
+      config.showSingleTier && sorted[0]?.minQty > 1
+        ? [{ minQty: 1 } as Tier, ...sorted]
+        : sorted;
     return rangeTitle(bands, bands.indexOf(t), config.unitName);
   };
   const order = config.tiers
@@ -278,6 +299,20 @@ export default function OfferEditor() {
         Cancel
       </s-button>
 
+      {loaded.builtin && (
+        <s-banner
+          tone="info"
+          heading="This store uses Shopify's built-in discounts"
+        >
+          <s-paragraph>
+            Shopify only runs app discounts from a private app on Shopify Plus,
+            so each tier is saved as a normal automatic discount. Price rounding
+            and “Set price” tiers aren’t available, and quantities count across
+            all of this offer’s products together.
+          </s-paragraph>
+        </s-banner>
+      )}
+
       {errors.length > 0 && (
         <s-banner tone="critical" heading="Fix these before saving">
           <s-unordered-list>
@@ -301,7 +336,9 @@ export default function OfferEditor() {
             <s-select
               label="Status"
               value={status}
-              onChange={(e) => setStatus(e.currentTarget.value as "ACTIVE" | "DRAFT")}
+              onChange={(e) =>
+                setStatus(e.currentTarget.value as "ACTIVE" | "DRAFT")
+              }
             >
               <s-option value="ACTIVE">Active</s-option>
               <s-option value="DRAFT">Paused</s-option>
@@ -326,11 +363,15 @@ export default function OfferEditor() {
           <s-choice-list
             label="Apply this offer to"
             values={[config.scope]}
-            onChange={(e) => update({ scope: e.currentTarget.values[0] as Scope })}
+            onChange={(e) =>
+              update({ scope: e.currentTarget.values[0] as Scope })
+            }
           >
             <s-choice value="all">All products</s-choice>
             <s-choice value="products">Specific products</s-choice>
-            <s-choice value="collections">Products in specific collections</s-choice>
+            <s-choice value="collections">
+              Products in specific collections
+            </s-choice>
           </s-choice-list>
 
           {config.scope === "products" && (
@@ -339,8 +380,15 @@ export default function OfferEditor() {
                 {config.products.length ? "Change products" : "Select products"}
               </s-button>
               {config.products.map((p) => (
-                <s-stack key={p.id} direction="inline" gap="small" alignItems="center">
-                  {p.image && <s-thumbnail src={p.image} alt={p.title} size="small" />}
+                <s-stack
+                  key={p.id}
+                  direction="inline"
+                  gap="small"
+                  alignItems="center"
+                >
+                  {p.image && (
+                    <s-thumbnail src={p.image} alt={p.title} size="small" />
+                  )}
                   <s-text>{p.title}</s-text>
                 </s-stack>
               ))}
@@ -350,7 +398,9 @@ export default function OfferEditor() {
           {config.scope === "collections" && (
             <s-stack gap="small">
               <s-button icon="plus-circle" onClick={pickCollections}>
-                {config.collections.length ? "Change collections" : "Select collections"}
+                {config.collections.length
+                  ? "Change collections"
+                  : "Select collections"}
               </s-button>
               {config.collections.map((c) => (
                 <s-text key={c.id}>{c.title}</s-text>
@@ -358,22 +408,26 @@ export default function OfferEditor() {
             </s-stack>
           )}
 
-          <s-select
-            label="Count quantity"
-            value={config.countMode}
-            onChange={(e) => update({ countMode: e.currentTarget.value as CountMode })}
-            details={
-              config.countMode === "product"
-                ? "Different sizes or colours of the same product add up."
-                : config.countMode === "variant"
-                  ? "Each size or colour needs to reach the tier on its own."
-                  : "Any of the selected products add up together (mix and match)."
-            }
-          >
-            <s-option value="product">Per product</s-option>
-            <s-option value="variant">Per variant</s-option>
-            <s-option value="combined">Across all selected products</s-option>
-          </s-select>
+          {!loaded.builtin && (
+            <s-select
+              label="Count quantity"
+              value={config.countMode}
+              onChange={(e) =>
+                update({ countMode: e.currentTarget.value as CountMode })
+              }
+              details={
+                config.countMode === "product"
+                  ? "Different sizes or colours of the same product add up."
+                  : config.countMode === "variant"
+                    ? "Each size or colour needs to reach the tier on its own."
+                    : "Any of the selected products add up together (mix and match)."
+              }
+            >
+              <s-option value="product">Per product</s-option>
+              <s-option value="variant">Per variant</s-option>
+              <s-option value="combined">Across all selected products</s-option>
+            </s-select>
+          )}
         </s-stack>
       </s-section>
 
@@ -390,7 +444,9 @@ export default function OfferEditor() {
             <s-select
               label="Selected when the page loads"
               value={String(config.preselectTier)}
-              onChange={(e) => update({ preselectTier: Number(e.currentTarget.value) })}
+              onChange={(e) =>
+                update({ preselectTier: Number(e.currentTarget.value) })
+              }
             >
               <s-option value="-1">First card</s-option>
               {order.map(({ t, i }) => (
@@ -404,24 +460,52 @@ export default function OfferEditor() {
           {order.map(({ t: tier, i }, pos) => {
             const open = openTier === i;
             return (
-              <s-box key={i} border="base" borderRadius="base" background={open ? "base" : "subdued"}>
+              <s-box
+                key={i}
+                border="base"
+                borderRadius="base"
+                background={open ? "base" : "subdued"}
+              >
                 <s-box padding="small-100 base">
-                  <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="small">
-                    <s-clickable onClick={() => setOpenTier(open ? null : i)} accessibilityLabel={open ? "Collapse tier" : "Expand tier"}>
-                      <s-stack direction="inline" gap="small" alignItems="center">
+                  <s-grid
+                    gridTemplateColumns="1fr auto"
+                    alignItems="center"
+                    gap="small"
+                  >
+                    <s-clickable
+                      onClick={() => setOpenTier(open ? null : i)}
+                      accessibilityLabel={
+                        open ? "Collapse tier" : "Expand tier"
+                      }
+                    >
+                      <s-stack
+                        direction="inline"
+                        gap="small"
+                        alignItems="center"
+                      >
                         <s-text type="strong">Tier {pos + 1}</s-text>
                         <s-text>{tier.title || autoTitle(tier)}</s-text>
-                        <s-badge tone={tier.type === "none" ? "neutral" : "success"}>
+                        <s-badge
+                          tone={tier.type === "none" ? "neutral" : "success"}
+                        >
                           {describeTier(tier, money)}
                         </s-badge>
-                        {tier.badge && <s-badge tone="warning">{tier.badge}</s-badge>}
+                        {tier.badge && (
+                          <s-badge tone="warning">{tier.badge}</s-badge>
+                        )}
                       </s-stack>
                     </s-clickable>
-                    <s-stack direction="inline" gap="small-300" alignItems="center">
+                    <s-stack
+                      direction="inline"
+                      gap="small-300"
+                      alignItems="center"
+                    >
                       <s-button
                         variant="tertiary"
                         icon={tier.badge ? "star-filled" : "star"}
-                        accessibilityLabel={tier.badge ? "Remove ribbon" : "Mark as most popular"}
+                        accessibilityLabel={
+                          tier.badge ? "Remove ribbon" : "Mark as most popular"
+                        }
                         onClick={() => togglePopular(i)}
                       />
                       <s-button
@@ -440,23 +524,33 @@ export default function OfferEditor() {
                       <s-button
                         variant="tertiary"
                         icon={open ? "chevron-up" : "chevron-down"}
-                        accessibilityLabel={open ? "Collapse tier" : "Expand tier"}
+                        accessibilityLabel={
+                          open ? "Collapse tier" : "Expand tier"
+                        }
                         onClick={() => setOpenTier(open ? null : i)}
                       />
                     </s-stack>
                   </s-grid>
                 </s-box>
                 {open && (
-                  <s-box padding="base" borderWidth="small none none none" borderColor="base">
+                  <s-box
+                    padding="base"
+                    borderWidth="small none none none"
+                    borderColor="base"
+                  >
                     <s-stack gap="base">
                       <s-stack gap="small-200">
                         <s-text type="strong">Discount type</s-text>
                         <s-stack direction="inline" gap="small-200">
-                          {TIER_TYPES.map((t) => (
+                          {TIER_TYPES.filter(
+                            (t) => !loaded.builtin || t.value !== "fixedPrice",
+                          ).map((t) => (
                             <s-button
                               key={t.value}
                               icon={t.icon}
-                              variant={tier.type === t.value ? "primary" : "secondary"}
+                              variant={
+                                tier.type === t.value ? "primary" : "secondary"
+                              }
                               onClick={() => updateTier(i, { type: t.value })}
                             >
                               {t.label}
@@ -467,17 +561,30 @@ export default function OfferEditor() {
                       <s-grid gridTemplateColumns="1fr 1fr" gap="base">
                         {tier.type !== "none" ? (
                           <s-number-field
-                            label={tier.type === "percentage" ? "Discount" : tier.type === "amountOff" ? "Amount off each item" : "Price for each item"}
+                            label={
+                              tier.type === "percentage"
+                                ? "Discount"
+                                : tier.type === "amountOff"
+                                  ? "Amount off each item"
+                                  : "Price for each item"
+                            }
                             min={0}
                             step={tier.type === "percentage" ? 1 : 0.01}
-                            suffix={tier.type === "percentage" ? "%" : loaded.currency}
+                            suffix={
+                              tier.type === "percentage" ? "%" : loaded.currency
+                            }
                             value={String(tier.value)}
-                            onInput={(e) => updateTier(i, { value: Number(e.currentTarget.value) || 0 })}
+                            onInput={(e) =>
+                              updateTier(i, {
+                                value: Number(e.currentTarget.value) || 0,
+                              })
+                            }
                           />
                         ) : (
                           <s-paragraph>
                             <s-text tone="neutral">
-                              Full price. Use this for a starting band such as 1 - 17 items.
+                              Full price. Use this for a starting band such as 1
+                              - 17 items.
                             </s-text>
                           </s-paragraph>
                         )}
@@ -488,23 +595,41 @@ export default function OfferEditor() {
                           value={String(tier.minQty)}
                           details={`Covers ${autoTitle(tier)}.`}
                           onInput={(e) =>
-                            updateTier(i, { minQty: Math.max(1, Math.floor(Number(e.currentTarget.value) || 1)) })
+                            updateTier(i, {
+                              minQty: Math.max(
+                                1,
+                                Math.floor(Number(e.currentTarget.value) || 1),
+                              ),
+                            })
                           }
                         />
                       </s-grid>
-                      {tier.type !== "none" && (
-                        <s-stack direction="inline" gap="base" alignItems="center">
+                      {tier.type !== "none" && !loaded.builtin && (
+                        <s-stack
+                          direction="inline"
+                          gap="base"
+                          alignItems="center"
+                        >
                           <s-switch
                             label="Round the price down"
                             checked={!!tier.rounding}
-                            onChange={(e) => updateTier(i, { rounding: e.currentTarget.checked ? ".99" : "" })}
+                            onChange={(e) =>
+                              updateTier(i, {
+                                rounding: e.currentTarget.checked ? ".99" : "",
+                              })
+                            }
                           />
                           {tier.rounding && (
                             <s-select
                               label="Price ending"
                               labelAccessibilityVisibility="exclusive"
                               value={tier.rounding}
-                              onChange={(e) => updateTier(i, { rounding: e.currentTarget.value as PriceEnding })}
+                              onChange={(e) =>
+                                updateTier(i, {
+                                  rounding: e.currentTarget
+                                    .value as PriceEnding,
+                                })
+                              }
                             >
                               {PRICE_ENDINGS.map((p) => (
                                 <s-option key={p} value={p}>
@@ -521,13 +646,17 @@ export default function OfferEditor() {
                           placeholder={autoTitle(tier)}
                           details="Leave blank for the automatic range."
                           value={tier.title}
-                          onInput={(e) => updateTier(i, { title: e.currentTarget.value })}
+                          onInput={(e) =>
+                            updateTier(i, { title: e.currentTarget.value })
+                          }
                         />
                         <s-text-field
                           label="Subtitle"
                           placeholder="e.g. Great deal, £0.95 inc VAT"
                           value={tier.subtitle}
-                          onInput={(e) => updateTier(i, { subtitle: e.currentTarget.value })}
+                          onInput={(e) =>
+                            updateTier(i, { subtitle: e.currentTarget.value })
+                          }
                         />
                       </s-grid>
                       <s-grid gridTemplateColumns="1fr 1fr" gap="base">
@@ -535,13 +664,20 @@ export default function OfferEditor() {
                           label="Ribbon"
                           placeholder="e.g. Most popular"
                           value={tier.badge}
-                          onInput={(e) => updateTier(i, { badge: e.currentTarget.value })}
+                          onInput={(e) =>
+                            updateTier(i, { badge: e.currentTarget.value })
+                          }
                         />
                         <s-text-field
                           label="Checkout message"
-                          placeholder={config.message.replace(/\{qty\}/g, String(tier.minQty))}
+                          placeholder={config.message.replace(
+                            /\{qty\}/g,
+                            String(tier.minQty),
+                          )}
                           value={tier.label}
-                          onInput={(e) => updateTier(i, { label: e.currentTarget.value })}
+                          onInput={(e) =>
+                            updateTier(i, { label: e.currentTarget.value })
+                          }
                         />
                       </s-grid>
                     </s-stack>
@@ -558,7 +694,9 @@ export default function OfferEditor() {
           <s-switch
             label="Add a full-price card for quantities below the first tier"
             checked={config.showSingleTier}
-            onChange={(e) => update({ showSingleTier: e.currentTarget.checked })}
+            onChange={(e) =>
+              update({ showSingleTier: e.currentTarget.checked })
+            }
           />
           <s-text-field
             label="Default checkout message"
@@ -574,7 +712,11 @@ export default function OfferEditor() {
           <s-choice-list
             label="Layout"
             values={[style.layout]}
-            onChange={(e) => setStyle({ layout: e.currentTarget.values[0] as WidgetSettings["layout"] })}
+            onChange={(e) =>
+              setStyle({
+                layout: e.currentTarget.values[0] as WidgetSettings["layout"],
+              })
+            }
           >
             <s-choice value="stack">Stacked list</s-choice>
             <s-choice value="grid">Side by side</s-choice>
@@ -586,7 +728,11 @@ export default function OfferEditor() {
               min={0}
               max={40}
               value={String(style.borderRadius)}
-              onInput={(e) => setStyle({ borderRadius: Math.max(0, Number(e.currentTarget.value) || 0) })}
+              onInput={(e) =>
+                setStyle({
+                  borderRadius: Math.max(0, Number(e.currentTarget.value) || 0),
+                })
+              }
             />
             <s-number-field
               label="Spacing"
@@ -594,14 +740,23 @@ export default function OfferEditor() {
               min={4}
               max={24}
               value={String(style.spacing)}
-              onInput={(e) => setStyle({ spacing: Math.min(24, Math.max(4, Number(e.currentTarget.value) || 12)) })}
+              onInput={(e) =>
+                setStyle({
+                  spacing: Math.min(
+                    24,
+                    Math.max(4, Number(e.currentTarget.value) || 12),
+                  ),
+                })
+              }
             />
           </s-grid>
           <s-stack gap="small-200">
             <s-text type="strong">Colour schemes</s-text>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {PALETTES.map((p) => {
-                const current = (Object.keys(p.colors) as (keyof typeof p.colors)[]).every(
+                const current = (
+                  Object.keys(p.colors) as (keyof typeof p.colors)[]
+                ).every(
                   (k) => style[k].toLowerCase() === p.colors[k].toLowerCase(),
                 );
                 return (
@@ -625,9 +780,23 @@ export default function OfferEditor() {
                       fontSize: 12,
                     }}
                   >
-                    <span style={{ display: "flex", borderRadius: 999, overflow: "hidden", border: "1px solid rgba(0,0,0,0.1)" }}>
-                      {[p.colors.selectedBackgroundColor, p.colors.accentColor, p.colors.badgeColor].map((c, k) => (
-                        <span key={k} style={{ width: 10, height: 20, background: c }} />
+                    <span
+                      style={{
+                        display: "flex",
+                        borderRadius: 999,
+                        overflow: "hidden",
+                        border: "1px solid rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      {[
+                        p.colors.selectedBackgroundColor,
+                        p.colors.accentColor,
+                        p.colors.badgeColor,
+                      ].map((c, k) => (
+                        <span
+                          key={k}
+                          style={{ width: 10, height: 20, background: c }}
+                        />
                       ))}
                     </span>
                     {p.name}
@@ -642,11 +811,18 @@ export default function OfferEditor() {
                 key={key}
                 label={label}
                 value={String(style[key])}
-                onChange={(e) => setStyle({ [key]: e.currentTarget.value } as Partial<WidgetSettings>)}
+                onChange={(e) =>
+                  setStyle({
+                    [key]: e.currentTarget.value,
+                  } as Partial<WidgetSettings>)
+                }
               />
             ))}
           </s-grid>
-          <s-button variant="tertiary" onClick={() => update({ style: settings })}>
+          <s-button
+            variant="tertiary"
+            onClick={() => update({ style: settings })}
+          >
             Reset to my default style
           </s-button>
         </s-stack>
@@ -657,7 +833,12 @@ export default function OfferEditor() {
           <s-select
             label="Price on each card"
             value={config.priceDisplay}
-            onChange={(e) => update({ priceDisplay: e.currentTarget.value as OfferConfig["priceDisplay"] })}
+            onChange={(e) =>
+              update({
+                priceDisplay: e.currentTarget
+                  .value as OfferConfig["priceDisplay"],
+              })
+            }
           >
             <s-option value="each">Price for one item</s-option>
             <s-option value="total">Total for the tier quantity</s-option>
@@ -691,14 +872,18 @@ export default function OfferEditor() {
           <s-switch
             label="Show the discount tag next to each title"
             checked={config.showDiscountTag}
-            onChange={(e) => update({ showDiscountTag: e.currentTarget.checked })}
+            onChange={(e) =>
+              update({ showDiscountTag: e.currentTarget.checked })
+            }
           />
           {config.showDiscountTag && (
             <s-text-field
               label="Discount tag text"
               details="{discount} becomes the saving, e.g. 5% or £0.10."
               value={config.discountTagText}
-              onInput={(e) => update({ discountTagText: e.currentTarget.value })}
+              onInput={(e) =>
+                update({ discountTagText: e.currentTarget.value })
+              }
             />
           )}
           <s-switch
@@ -722,21 +907,36 @@ export default function OfferEditor() {
             label="Other product discounts"
             checked={config.combinesWith.productDiscounts}
             onChange={(e) =>
-              update({ combinesWith: { ...config.combinesWith, productDiscounts: e.currentTarget.checked } })
+              update({
+                combinesWith: {
+                  ...config.combinesWith,
+                  productDiscounts: e.currentTarget.checked,
+                },
+              })
             }
           />
           <s-checkbox
             label="Order discounts"
             checked={config.combinesWith.orderDiscounts}
             onChange={(e) =>
-              update({ combinesWith: { ...config.combinesWith, orderDiscounts: e.currentTarget.checked } })
+              update({
+                combinesWith: {
+                  ...config.combinesWith,
+                  orderDiscounts: e.currentTarget.checked,
+                },
+              })
             }
           />
           <s-checkbox
             label="Shipping discounts"
             checked={config.combinesWith.shippingDiscounts}
             onChange={(e) =>
-              update({ combinesWith: { ...config.combinesWith, shippingDiscounts: e.currentTarget.checked } })
+              update({
+                combinesWith: {
+                  ...config.combinesWith,
+                  shippingDiscounts: e.currentTarget.checked,
+                },
+              })
             }
           />
           <s-grid gridTemplateColumns="1fr 1fr" gap="base">
@@ -745,7 +945,11 @@ export default function OfferEditor() {
               details="Leave blank to start now."
               value={config.startsAt?.slice(0, 10) ?? ""}
               onChange={(e) =>
-                update({ startsAt: e.currentTarget.value ? new Date(e.currentTarget.value).toISOString() : null })
+                update({
+                  startsAt: e.currentTarget.value
+                    ? new Date(e.currentTarget.value).toISOString()
+                    : null,
+                })
               }
             />
             <s-date-field
@@ -753,7 +957,11 @@ export default function OfferEditor() {
               details="Leave blank to run until you pause it."
               value={config.endsAt?.slice(0, 10) ?? ""}
               onChange={(e) =>
-                update({ endsAt: e.currentTarget.value ? new Date(e.currentTarget.value).toISOString() : null })
+                update({
+                  endsAt: e.currentTarget.value
+                    ? new Date(e.currentTarget.value).toISOString()
+                    : null,
+                })
               }
             />
           </s-grid>
@@ -775,7 +983,9 @@ export default function OfferEditor() {
             step={0.01}
             suffix={loaded.currency}
             value={String(samplePrice)}
-            onInput={(e) => setSamplePrice(Math.max(0, Number(e.currentTarget.value) || 0))}
+            onInput={(e) =>
+              setSamplePrice(Math.max(0, Number(e.currentTarget.value) || 0))
+            }
           />
         </s-stack>
       </s-section>

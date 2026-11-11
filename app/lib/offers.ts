@@ -235,10 +235,8 @@ export function validateOffer(title: string, config: OfferConfig): string[] {
       // No discount: nothing to check.
     } else if (!Number.isFinite(t.value) || t.value < 0) {
       errors.push(`${n}: enter a discount value.`);
-    } else if (t.type === "percentage" && (t.value <= 0 || t.value > 100)) {
-      errors.push(`${n}: percentage must be between 0 and 100.`);
-    } else if (t.type === "amountOff" && t.value <= 0) {
-      errors.push(`${n}: amount off must be more than 0.`);
+    } else if (t.type === "percentage" && t.value > 100) {
+      errors.push(`${n}: percentage can't be more than 100.`);
     }
   });
 
@@ -355,7 +353,7 @@ export function discountTag(
   unit: number,
   money: (n: number) => string,
 ): string {
-  if (!t || t.type === "none") return "";
+  if (!t || t.type === "none" || !(t.value > 0 || t.type === "fixedPrice")) return "";
   let amount = "";
   if (t.type === "percentage") amount = `${t.value}%`;
   else if (t.type === "amountOff") amount = money(t.value);

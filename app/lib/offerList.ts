@@ -25,6 +25,7 @@ export interface OfferRow {
   config: string;
   updatedAt: Date;
   discountId?: string | null;
+  builtinDiscountIds?: string | null;
 }
 
 /** What the merchant sees: paused, or active/scheduled/expired from the dates. */
