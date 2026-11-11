@@ -1,5 +1,6 @@
 // Shared offer types, defaults and validation. Used by both the admin UI and
 // the server-side sync code, so keep it free of server-only imports.
+import type { CurrencyFormat, DateFormat } from "./formats";
 
 export type TierType = "percentage" | "amountOff" | "fixedPrice" | "none";
 /** Price ending the discounted unit price is rounded down to. "" = no rounding. */
@@ -92,6 +93,9 @@ export interface WidgetSettings {
   /** Gap between cards and their inner padding, in px. */
   spacing: number;
   layout: "stack" | "grid";
+  /** Store-wide display formats (Settings page). Not changed per offer. */
+  dateFormat: DateFormat;
+  currencyFormat: CurrencyFormat;
 }
 
 export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
@@ -106,6 +110,8 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   borderRadius: 10,
   spacing: 12,
   layout: "stack",
+  dateFormat: "d MMM yyyy",
+  currencyFormat: "store",
 };
 
 type Palette = Pick<

@@ -9,19 +9,14 @@ import {
   type Tier,
   type WidgetSettings,
 } from "../lib/offers";
+import { formatMoney, type CurrencyFormat } from "../lib/formats";
 
-export function moneyFormatter(currency: string, hideDecimals = false) {
-  let fmt: Intl.NumberFormat;
-  try {
-    fmt = new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency,
-      ...(hideDecimals ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
-    });
-  } catch {
-    fmt = new Intl.NumberFormat("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  return (n: number) => fmt.format(n);
+export function moneyFormatter(
+  currency: string,
+  hideDecimals = false,
+  format: CurrencyFormat = "store",
+) {
+  return (n: number) => formatMoney(n, currency, format, hideDecimals);
 }
 
 interface Row {
@@ -59,15 +54,17 @@ export function TierPreview({
   style: s,
   unitPrice,
   currency = "GBP",
+  currencyFormat = "store",
 }: {
   config: OfferConfig;
   style: WidgetSettings;
   unitPrice: number;
   currency?: string;
+  currencyFormat?: CurrencyFormat;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const money = moneyFormatter(currency, config.hideDecimals);
-  const exactMoney = moneyFormatter(currency);
+  const money = moneyFormatter(currency, config.hideDecimals, currencyFormat);
+  const exactMoney = moneyFormatter(currency, false, currencyFormat);
 
   const rows = previewRows(config);
   const pre = config.tiers[config.preselectTier];
