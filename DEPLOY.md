@@ -51,6 +51,17 @@ Set these environment variables on each deployment:
 | `SCOPES` | `write_discounts,read_products` |
 | `PORT` | `3000` |
 
+### On Render (using `render.yaml`)
+
+1. In Render, choose **New → Blueprint** and pick this repo. This creates
+   `vdp-dyesublimationstore` and `vdp-giftboxes`, each with a 1 GB disk at
+   `/data`.
+2. When it asks for the secrets, enter each app's Client ID and Client secret.
+   For `SHOPIFY_APP_URL`, put a placeholder for now.
+3. Once each service is live, copy its URL (e.g.
+   `https://vdp-giftboxes.onrender.com`) into its `SHOPIFY_APP_URL` and
+   redeploy that service.
+
 ## 3. Point the app at the server and deploy
 
 Edit `shopify.app.<name>.toml`:
