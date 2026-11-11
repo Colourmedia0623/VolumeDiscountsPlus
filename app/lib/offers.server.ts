@@ -233,6 +233,17 @@ export async function setOfferStatus(
   });
 }
 
+/** Copies an offer (and creates its own discount), paused so it can be edited first. */
+export async function duplicateOffer(admin: Admin, shop: string, id: number) {
+  const offer = await prisma.offer.findFirst({ where: { id, shop } });
+  if (!offer) return null;
+  return saveOffer(admin, shop, {
+    title: `${offer.title} (copy)`,
+    status: "DRAFT",
+    config: parseConfig(offer.config),
+  });
+}
+
 export async function deleteOffer(admin: Admin, shop: string, id: number) {
   const offer = await prisma.offer.findFirst({ where: { id, shop } });
   if (!offer) return;
@@ -288,14 +299,30 @@ export async function publishWidgetData(admin: Admin, shop: string) {
         collectionIds: config.collections.map((c) => numericId(c.id)),
         countMode: config.countMode,
         heading: config.heading,
+        headingLines: config.headingLines,
         showSingleTier: config.showSingleTier,
         preselectTier: config.preselectTier,
         startsAt: config.startsAt,
         endsAt: config.endsAt,
+        display: {
+          unitName: config.unitName,
+          showDiscountTag: config.showDiscountTag,
+          discountTagText: config.discountTagText,
+          priceDisplay: config.priceDisplay,
+          eachPriceText: config.eachPriceText,
+          showCompareAt: config.showCompareAt,
+          showTotal: config.showTotal,
+          totalText: config.totalText,
+          hideDecimals: config.hideDecimals,
+          footerText: config.footerText,
+        },
+        // Each offer carries its own style; offers without one use the store default.
+        style: config.style ?? settings,
         tiers: config.tiers.map((t) => ({
           minQty: t.minQty,
           type: t.type,
           value: t.value,
+          rounding: t.rounding,
           title: t.title,
           subtitle: t.subtitle,
           badge: t.badge,

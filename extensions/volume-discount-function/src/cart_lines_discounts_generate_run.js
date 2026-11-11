@@ -2,8 +2,8 @@
  * @typedef {import("../generated/api").CartInput} RunInput
  * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
  *
- * @typedef {"percentage" | "amountOff" | "fixedPrice"} TierType
- * @typedef {{ minQty: number, type: TierType, value: number, label?: string }} Tier
+ * @typedef {"percentage" | "amountOff" | "fixedPrice" | "none"} TierType
+ * @typedef {{ minQty: number, type: TierType, value: number, rounding?: string, label?: string }} Tier
  * @typedef {{
  *   scope?: "all" | "products" | "collections",
  *   productIds?: string[],
@@ -68,11 +68,12 @@ export function cartLinesDiscountsGenerateRun(input) {
   for (const lines of groups.values()) {
     const qty = lines.reduce((sum, l) => sum + l.quantity, 0);
     const tier = bestTier(tiers, qty);
-    if (!tier) continue;
+    // "none" tiers are full-price quantity bands (e.g. 1-17) above a cheaper tier.
+    if (!tier || tier.type === "none") continue;
 
     const message = formatMessage(config.message, tier);
 
-    if (tier.type === "percentage") {
+    if (tier.type === "percentage" && !tier.rounding) {
       candidates.push({
         message,
         targets: lines.map((l) => ({ cartLine: { id: l.id } })),
@@ -81,16 +82,22 @@ export function cartLinesDiscountsGenerateRun(input) {
       continue;
     }
 
-    // Amount-based tiers are worked out per line because variants in one group
-    // can have different prices.
+    // Amount-based and rounded tiers are worked out per line because variants
+    // in one group can have different prices. Prices are in the cart's
+    // currency, so rounding to .99 happens in the shopper's currency.
     for (const line of lines) {
       const unitPrice = Number(line.cost.amountPerQuantity.amount);
       const amount = tier.value * rate;
-      const off =
-        tier.type === "fixedPrice"
-          ? unitPrice - amount
-          : Math.min(amount, unitPrice);
-      if (!(off > 0)) continue;
+      let price =
+        tier.type === "percentage"
+          ? unitPrice * (1 - Math.min(tier.value, 100) / 100)
+          : tier.type === "fixedPrice"
+            ? Math.min(unitPrice, amount)
+            : unitPrice - amount;
+      price = Math.max(0, price);
+      price = applyPriceEnding(Math.round(price * 100), tier.rounding) / 100;
+      const off = unitPrice - price;
+      if (!(off > 0.004)) continue;
       candidates.push({
         message,
         targets: [{ cartLine: { id: line.id } }],
@@ -124,14 +131,16 @@ function normaliseTiers(tiers) {
       minQty: Math.floor(Number(t?.minQty)),
       type: t?.type,
       value: Number(t?.value),
+      rounding: typeof t?.rounding === "string" ? t.rounding : undefined,
       label: typeof t?.label === "string" ? t.label : undefined,
     }))
     .filter(
       (t) =>
         t.minQty >= 1 &&
-        ["percentage", "amountOff", "fixedPrice"].includes(t.type) &&
-        Number.isFinite(t.value) &&
-        (t.type === "fixedPrice" ? t.value >= 0 : t.value > 0),
+        (t.type === "none" ||
+          (["percentage", "amountOff", "fixedPrice"].includes(t.type) &&
+            Number.isFinite(t.value) &&
+            (t.type === "fixedPrice" ? t.value >= 0 : t.value > 0))),
     )
     .sort((a, b) => b.minQty - a.minQty);
 }
@@ -145,6 +154,19 @@ function formatMessage(template, tier) {
   if (tier.label) return tier.label;
   const fallback = template || "Volume discount";
   return fallback.replace(/\{qty\}/g, String(tier.minQty));
+}
+
+/**
+ * Rounds a price in minor units down to an ending such as ".99". Keeps the
+ * exact price if rounding would make it free. Same as applyPriceEnding in
+ * app/lib/offers.ts.
+ */
+function applyPriceEnding(cents, ending) {
+  if (!ending) return cents;
+  const end = Math.round(Number(ending) * 100);
+  if (!Number.isFinite(end) || end < 0 || end > 99) return cents;
+  const rounded = Math.floor((cents - end) / 100) * 100 + end;
+  return rounded > 0 && rounded <= cents ? rounded : cents;
 }
 
 function round2(n) {

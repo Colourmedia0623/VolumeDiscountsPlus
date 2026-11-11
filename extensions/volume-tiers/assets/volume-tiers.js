@@ -80,14 +80,75 @@
     return rate > 0 ? rate : 1;
   }
 
+  /** Rounds a price in cents down to an ending like ".99" (same as the Function). */
+  function applyPriceEnding(cents, ending) {
+    if (!ending) return cents;
+    var end = Math.round(Number(ending) * 100);
+    var rounded = Math.floor((cents - end) / 100) * 100 + end;
+    return rounded > 0 && rounded <= cents ? rounded : cents;
+  }
+
   /** Unit price in cents after the tier (same maths as the Function). */
   function tierUnitPrice(unit, tier) {
-    if (!tier) return unit;
+    if (!tier || tier.type === "none") return unit;
     var amount = tier.value * 100 * currencyRate();
-    if (tier.type === "percentage") return Math.max(0, unit * (1 - Math.min(tier.value, 100) / 100));
-    if (tier.type === "amountOff") return Math.max(0, unit - amount);
-    if (tier.type === "fixedPrice") return Math.min(unit, amount);
-    return unit;
+    var price = unit;
+    if (tier.type === "percentage") price = unit * (1 - Math.min(tier.value, 100) / 100);
+    else if (tier.type === "amountOff") price = unit - amount;
+    else if (tier.type === "fixedPrice") price = Math.min(unit, amount);
+    return applyPriceEnding(Math.round(Math.max(0, price)), tier.rounding);
+  }
+
+  /** Total in cents for `qty` items. Unrounded % tiers apply to the line total, like checkout. */
+  function tierTotal(unit, tier, qty) {
+    if (tier && tier.type === "percentage" && !tier.rounding) {
+      return Math.round(unit * qty * (1 - Math.min(tier.value, 100) / 100));
+    }
+    return tierUnitPrice(unit, tier) * qty;
+  }
+
+  /** "18 - 35 mugs", "36+ mugs". `bands` is sorted by quantity. */
+  function rangeTitle(bands, i, unitName) {
+    var from = bands[i].minQty;
+    var next = bands[i + 1] && bands[i + 1].minQty;
+    var range = next === undefined ? from + "+" : next - 1 <= from ? String(from) : from + " - " + (next - 1);
+    var unit = (unitName || "").trim();
+    return unit ? range + " " + unit : range;
+  }
+
+  function discountTag(template, tier, unit, moneyFormat) {
+    if (!tier || tier.type === "none") return "";
+    var amount;
+    if (tier.type === "percentage") amount = tier.value + "%";
+    else if (tier.type === "amountOff") amount = formatMoney(tier.value * 100 * currencyRate(), moneyFormat);
+    else {
+      var pct = unit > 0 ? Math.round((1 - tierUnitPrice(unit, tier) / unit) * 100) : 0;
+      if (pct <= 0) return "";
+      amount = pct + "%";
+    }
+    return (template || "{discount} OFF").replace(/\{discount\}/g, amount);
+  }
+
+  var STYLE_VARS = {
+    accentColor: "--vdp-accent",
+    textColor: "--vdp-text",
+    backgroundColor: "--vdp-bg",
+    selectedBackgroundColor: "--vdp-bg-selected",
+    badgeColor: "--vdp-badge",
+    badgeTextColor: "--vdp-badge-text",
+    tagColor: "--vdp-tag",
+    tagTextColor: "--vdp-tag-text",
+  };
+
+  function applyStyle(root, style) {
+    if (!style) return;
+    Object.keys(STYLE_VARS).forEach(function (key) {
+      if (style[key]) root.style.setProperty(STYLE_VARS[key], style[key]);
+    });
+    if (style.borderRadius != null) root.style.setProperty("--vdp-radius", style.borderRadius + "px");
+    if (style.spacing != null) root.style.setProperty("--vdp-space", style.spacing + "px");
+    root.classList.remove("vdp-tiers--stack", "vdp-tiers--grid");
+    root.classList.add("vdp-tiers--" + (style.layout === "grid" ? "grid" : "stack"));
   }
 
   function el(tag, className, text) {
@@ -135,13 +196,17 @@
     var offer = findOffer(data.offers, product);
     if (!offer) return;
 
-    var settings = data.settings || {};
-    var moneyFormat = root.getAttribute("data-money-format");
+    var display = offer.display || {};
+    applyStyle(root, offer.style || data.settings);
+    var moneyFormat = root.getAttribute("data-money-format") || "${{amount}}";
+    var displayFormat = display.hideDecimals
+      ? moneyFormat.replace(/\{\{\s*amount(_with_comma_separator)?\s*\}\}/, function (_, comma) {
+          return comma ? "{{amount_no_decimals_with_comma_separator}}" : "{{amount_no_decimals}}";
+        })
+      : moneyFormat;
     var text = {
-      each: root.getAttribute("data-text-each") || "each",
-      save: root.getAttribute("data-text-save") || "Save [amount]",
-      standard: root.getAttribute("data-text-standard") || "Standard price",
-      buyOne: root.getAttribute("data-text-buy-one") || "Buy 1",
+      each: display.eachPriceText != null ? display.eachPriceText : root.getAttribute("data-text-each") || "each",
+      total: display.totalText != null ? display.totalText : "Total:",
     };
 
     var sorted = offer.tiers
@@ -152,25 +217,34 @@
         return a.tier.minQty - b.tier.minQty;
       });
 
-    var rows = [];
-    if (offer.showSingleTier && sorted[0].tier.minQty > 1) {
-      rows.push({ qty: 1, tier: null, title: text.buyOne, subtitle: text.standard, badge: "" });
-    }
-    sorted.forEach(function (s) {
-      rows.push({
-        qty: s.tier.minQty,
-        tier: s.tier,
-        index: s.index,
-        title: s.tier.title || "Buy " + s.tier.minQty,
-        subtitle: s.tier.subtitle || "",
-        badge: s.tier.badge || "",
-      });
+    // Bands in quantity order; null = full-price card below the first tier.
+    var bands = sorted.slice();
+    if (offer.showSingleTier && sorted[0].tier.minQty > 1) bands.unshift(null);
+    var bandQty = bands.map(function (b) {
+      return { minQty: b ? b.tier.minQty : 1 };
+    });
+    var rows = bands.map(function (b, i) {
+      return {
+        qty: bandQty[i].minQty,
+        tier: b ? b.tier : null,
+        index: b ? b.index : -1,
+        title: (b && b.tier.title) || rangeTitle(bandQty, i, display.unitName),
+        subtitle: (b && b.tier.subtitle) || "",
+        badge: (b && b.tier.badge) || "",
+      };
     });
 
     var form = findProductForm(root);
     var list = root.querySelector("[data-vdp-list]");
     var heading = root.querySelector("[data-vdp-heading]");
     heading.textContent = offer.heading || "";
+    if (offer.headingLines === false) heading.classList.add("vdp-tiers__heading--plain");
+    var totalEl = root.querySelector("[data-vdp-total]");
+    var footer = root.querySelector("[data-vdp-footer]");
+    if (footer) {
+      footer.textContent = display.footerText || "";
+      footer.hidden = !display.footerText;
+    }
 
     var buttons = rows.map(function (row, i) {
       var btn = el("button", "vdp-tier" + (row.badge ? " vdp-tier--has-badge" : ""));
@@ -180,19 +254,20 @@
       if (row.badge) btn.appendChild(el("span", "vdp-tier__badge", row.badge));
       btn.appendChild(el("span", "vdp-tier__radio"));
       var main = el("span", "vdp-tier__main");
-      var title = el("span", "vdp-tier__title", row.title);
-      var save = el("span", "vdp-tier__save");
-      title.appendChild(save);
+      var title = el("span", "vdp-tier__title");
+      title.appendChild(el("span", "vdp-tier__name", row.title));
+      var tag = el("span", "vdp-tier__tag");
+      title.appendChild(tag);
       main.appendChild(title);
       if (row.subtitle) main.appendChild(el("span", "vdp-tier__subtitle", row.subtitle));
       btn.appendChild(main);
       var prices = el("span", "vdp-tier__prices");
-      var total = el("span", "vdp-tier__total");
+      var price = el("span", "vdp-tier__price");
+      var suffix = el("span", "vdp-tier__each");
       var compare = el("span", "vdp-tier__compare");
-      var each = el("span", "vdp-tier__each");
-      prices.appendChild(total);
+      prices.appendChild(price);
+      prices.appendChild(suffix);
       prices.appendChild(compare);
-      prices.appendChild(each);
       btn.appendChild(prices);
       btn.addEventListener("click", function () {
         select(i, true);
@@ -206,7 +281,7 @@
         buttons[j].el.focus();
       });
       list.appendChild(btn);
-      return { el: btn, save: save, total: total, compare: compare, each: each };
+      return { el: btn, tag: tag, price: price, suffix: suffix, compare: compare };
     });
 
     var current = -1;
@@ -220,24 +295,33 @@
       return product.variants.length ? product.variants[0].price : 0;
     }
 
+    function renderTotal() {
+      if (!totalEl) return;
+      var show = display.showTotal && current >= 0;
+      totalEl.hidden = !show;
+      if (!show) return;
+      var row = rows[current];
+      totalEl.textContent = text.total + " " + formatMoney(tierTotal(variantPrice(), row.tier, row.qty), displayFormat);
+    }
+
     function renderPrices() {
       var unit = variantPrice();
+      var showEach = display.priceDisplay === "each";
       rows.forEach(function (row, i) {
         var b = buttons[i];
         var eachPrice = tierUnitPrice(unit, row.tier);
-        var full = unit * row.qty;
-        var totalPrice = eachPrice * row.qty;
-        var saving = full - totalPrice;
-        b.total.textContent = formatMoney(totalPrice, moneyFormat);
-        b.compare.textContent = saving >= 1 ? formatMoney(full, moneyFormat) : "";
-        b.compare.hidden = saving < 1;
-        b.each.textContent =
-          settings.showPerItemPrice !== false && row.qty > 1 ? formatMoney(eachPrice, moneyFormat) + " " + text.each : "";
-        b.each.hidden = !b.each.textContent;
-        b.save.textContent =
-          settings.showSavings !== false && saving >= 1 ? text.save.replace("[amount]", formatMoney(saving, moneyFormat)) : "";
-        b.save.hidden = !b.save.textContent;
+        var discounted = eachPrice < unit;
+        b.price.textContent = formatMoney(showEach ? eachPrice : tierTotal(unit, row.tier, row.qty), displayFormat);
+        b.suffix.textContent = showEach && text.each ? " " + text.each : "";
+        b.suffix.hidden = !b.suffix.textContent;
+        var showCompare = display.showCompareAt !== false && discounted;
+        b.compare.textContent = showCompare ? formatMoney(showEach ? unit : unit * row.qty, displayFormat) : "";
+        b.compare.hidden = !showCompare;
+        b.tag.textContent =
+          display.showDiscountTag !== false ? discountTag(display.discountTagText, row.tier, unit, moneyFormat) : "";
+        b.tag.hidden = !b.tag.textContent;
       });
+      renderTotal();
     }
 
     function select(i, updateQuantity) {
@@ -246,6 +330,7 @@
         b.el.setAttribute("aria-checked", j === i ? "true" : "false");
         b.el.tabIndex = j === i ? 0 : -1;
       });
+      renderTotal();
       if (!updateQuantity) return;
       quantityInputs(form).forEach(function (input) {
         input.value = String(rows[i].qty);
