@@ -1,7 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
-
-import { login } from "../../shopify.server";
+import { redirect } from "react-router";
 
 import styles from "./styles.module.css";
 
@@ -12,12 +10,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  return { showForm: Boolean(login) };
+  // No shop-domain login form: Shopify's App Store rules say merchants
+  // install and open the app from Shopify, never by typing their domain.
+  return null;
 };
 
 export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
-
   return (
     <div className={styles.index}>
       <div className={styles.content}>
@@ -25,18 +23,6 @@ export default function App() {
         <p className={styles.text}>
           Quantity-break discounts that lift your average order value.
         </p>
-        {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
-            <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
-            </label>
-            <button className={styles.button} type="submit">
-              Log in
-            </button>
-          </Form>
-        )}
         <ul className={styles.list}>
           <li>
             <strong>Tiered discounts</strong>. Buy 2 save 10%, buy 3 save 15%:
@@ -47,10 +33,13 @@ export default function App() {
             right above Add to cart, with savings shown on every option.
           </li>
           <li>
-            <strong>Applied automatically</strong>. Discounts run on Shopify
-            Functions at checkout, with no codes for customers to type.
+            <strong>Applied automatically</strong>. Discounts apply at checkout,
+            with no codes for customers to type.
           </li>
         </ul>
+        <p className={styles.text}>
+          <a href="/privacy">Privacy policy</a>
+        </p>
       </div>
     </div>
   );
