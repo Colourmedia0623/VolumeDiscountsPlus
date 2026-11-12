@@ -174,15 +174,24 @@
     badgeTextColor: "--vdp-badge-text",
     tagColor: "--vdp-tag",
     tagTextColor: "--vdp-tag-text",
+    headingColor: "--vdp-heading",
+    titleColor: "--vdp-title",
+    subtitleColor: "--vdp-subtitle",
+    priceColor: "--vdp-price",
+    compareColor: "--vdp-compare",
+    borderColor: "--vdp-border",
   };
 
   function applyStyle(root, style) {
     if (!style) return;
     Object.keys(STYLE_VARS).forEach(function (key) {
       if (style[key]) root.style.setProperty(STYLE_VARS[key], style[key]);
+      // Optional part colours: empty means "inherit", so clear any earlier value.
+      else if (/^(heading|title|subtitle|price|compare|border)Color$/.test(key)) root.style.removeProperty(STYLE_VARS[key]);
     });
     if (style.borderRadius != null) root.style.setProperty("--vdp-radius", style.borderRadius + "px");
     if (style.spacing != null) root.style.setProperty("--vdp-space", style.spacing + "px");
+    if (style.borderWidth != null) root.style.setProperty("--vdp-border-width", style.borderWidth + "px");
     root.classList.remove("vdp-tiers--stack", "vdp-tiers--grid");
     root.classList.add("vdp-tiers--" + (style.layout === "grid" ? "grid" : "stack"));
   }

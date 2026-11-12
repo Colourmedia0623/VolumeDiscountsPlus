@@ -12,7 +12,6 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
   DEFAULT_RIBBON,
-  PALETTES,
   PRICE_ENDINGS,
   defaultOfferConfig,
   describeTier,
@@ -35,6 +34,7 @@ import {
   getSettings,
   saveOffer,
 } from "../lib/offers.server";
+import { StyleEditor } from "../components/StyleEditor";
 import { TierPreview, moneyFormatter } from "../components/TierPreview";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -152,17 +152,6 @@ const TIER_TYPES: {
   { value: "amountOff", label: "Amount off", icon: "cash-pound" },
   { value: "fixedPrice", label: "Set price", icon: "price-list" },
   { value: "none", label: "No discount", icon: "x-circle" },
-];
-
-const STYLE_COLORS: { key: keyof WidgetSettings; label: string }[] = [
-  { key: "backgroundColor", label: "Card" },
-  { key: "selectedBackgroundColor", label: "Selected card" },
-  { key: "accentColor", label: "Selected border and radio" },
-  { key: "textColor", label: "Text" },
-  { key: "tagColor", label: "Discount tag" },
-  { key: "tagTextColor", label: "Discount tag text" },
-  { key: "badgeColor", label: "Ribbon" },
-  { key: "badgeTextColor", label: "Ribbon text" },
 ];
 
 /** Next quantity not already used by a tier, starting at `from`. */
@@ -831,118 +820,9 @@ export default function OfferEditor() {
         </s-stack>
       </s-section>
 
-      <s-section heading="Colour and style">
+      <s-section heading="Look and feel">
         <s-stack gap="base">
-          <s-choice-list
-            label="Layout"
-            values={[style.layout]}
-            onChange={(e) =>
-              setStyle({
-                layout: e.currentTarget.values[0] as WidgetSettings["layout"],
-              })
-            }
-          >
-            <s-choice value="stack">Stacked list</s-choice>
-            <s-choice value="grid">Side by side</s-choice>
-          </s-choice-list>
-          <s-grid gridTemplateColumns="1fr 1fr" gap="base">
-            <s-number-field
-              label="Corner roundness"
-              suffix="px"
-              min={0}
-              max={40}
-              value={String(style.borderRadius)}
-              onInput={(e) =>
-                setStyle({
-                  borderRadius: Math.max(0, Number(e.currentTarget.value) || 0),
-                })
-              }
-            />
-            <s-number-field
-              label="Spacing"
-              suffix="px"
-              min={4}
-              max={24}
-              value={String(style.spacing)}
-              onInput={(e) =>
-                setStyle({
-                  spacing: Math.min(
-                    24,
-                    Math.max(4, Number(e.currentTarget.value) || 12),
-                  ),
-                })
-              }
-            />
-          </s-grid>
-          <s-stack gap="small-200">
-            <s-text type="strong">Colour schemes</s-text>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {PALETTES.map((p) => {
-                const current = (
-                  Object.keys(p.colors) as (keyof typeof p.colors)[]
-                ).every(
-                  (k) => style[k].toLowerCase() === p.colors[k].toLowerCase(),
-                );
-                return (
-                  <button
-                    key={p.name}
-                    type="button"
-                    title={p.name}
-                    aria-label={`Use the ${p.name} colour scheme`}
-                    aria-pressed={current}
-                    onClick={() => setStyle(p.colors)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "4px 10px 4px 4px",
-                      borderRadius: 999,
-                      border: `2px solid ${current ? "#303030" : "#e3e3e3"}`,
-                      background: "#fff",
-                      cursor: "pointer",
-                      font: "inherit",
-                      fontSize: 12,
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "flex",
-                        borderRadius: 999,
-                        overflow: "hidden",
-                        border: "1px solid rgba(0,0,0,0.1)",
-                      }}
-                    >
-                      {[
-                        p.colors.selectedBackgroundColor,
-                        p.colors.accentColor,
-                        p.colors.badgeColor,
-                      ].map((c, k) => (
-                        <span
-                          key={k}
-                          style={{ width: 10, height: 20, background: c }}
-                        />
-                      ))}
-                    </span>
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </s-stack>
-          <s-grid gridTemplateColumns="1fr 1fr" gap="base">
-            {STYLE_COLORS.map(({ key, label }) => (
-              <s-color-field
-                key={key}
-                label={label}
-                value={String(style[key])}
-                onChange={(e) =>
-                  setStyle({
-                    [key]: e.currentTarget.value,
-                  } as Partial<WidgetSettings>)
-                }
-              />
-            ))}
-          </s-grid>
+          <StyleEditor value={style} onChange={setStyle} money={money} />
           <s-button
             variant="tertiary"
             onClick={() => update({ style: settings })}

@@ -77,7 +77,7 @@ export function TierPreview({
   return (
     <div style={{ color: s.textColor, fontSize: 14 }}>
       {config.heading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px", fontWeight: 700, fontSize: 15 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px", fontWeight: 700, fontSize: 15, color: s.headingColor || undefined }}>
           {config.headingLines && <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.2 }} />}
           <span style={{ margin: config.headingLines ? 0 : "0 auto" }}>{config.heading}</span>
           {config.headingLines && <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.2 }} />}
@@ -114,9 +114,9 @@ export function TierPreview({
                 padding: `${gap}px ${gap + 2}px`,
                 marginTop: r.badge && !grid ? 8 : 0,
                 borderRadius: s.borderRadius,
-                border: `2px solid ${isActive ? s.accentColor : "transparent"}`,
+                border: `${s.borderWidth ?? 2}px solid ${isActive ? s.accentColor : "transparent"}`,
                 background: isActive ? s.selectedBackgroundColor : s.backgroundColor,
-                boxShadow: isActive ? undefined : "inset 0 0 0 1px rgba(0,0,0,0.08)",
+                boxShadow: isActive ? undefined : `inset 0 0 0 1px ${s.borderColor || "rgba(0,0,0,0.08)"}`,
                 color: s.textColor,
                 cursor: "pointer",
                 font: "inherit",
@@ -154,7 +154,7 @@ export function TierPreview({
                 />
               )}
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 700 }}>{r.title}</span>
+                <span style={{ fontWeight: 700, color: s.titleColor || undefined }}>{r.title}</span>
                 {tag && (
                   <span
                     style={{
@@ -173,16 +173,16 @@ export function TierPreview({
                   </span>
                 )}
                 {r.subtitle && (
-                  <span style={{ display: "block", fontSize: 12, fontWeight: 600, opacity: 0.8 }}>{r.subtitle}</span>
+                  <span style={{ display: "block", fontSize: 12, fontWeight: 600, opacity: 0.8, color: s.subtitleColor || undefined }}>{r.subtitle}</span>
                 )}
               </span>
               <span style={{ textAlign: grid ? "center" : "right", whiteSpace: "nowrap" }}>
-                <span style={{ fontWeight: 700 }}>{money(price)}</span>
+                <span style={{ fontWeight: 700, color: s.priceColor || undefined }}>{money(price)}</span>
                 {showEach && config.eachPriceText && (
                   <span style={{ fontSize: 11, opacity: 0.75 }}> {config.eachPriceText}</span>
                 )}
                 {config.showCompareAt && discounted && (
-                  <span style={{ display: "block", fontSize: 12, textDecoration: "line-through", opacity: 0.55 }}>
+                  <span style={{ display: "block", fontSize: 12, textDecoration: "line-through", opacity: 0.55, color: s.compareColor || undefined }}>
                     {money(compare)}
                   </span>
                 )}
