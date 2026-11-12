@@ -102,6 +102,9 @@ export interface WidgetSettings {
   compareColor: string;
   /** Outline of unselected cards. Empty = a faint grey. */
   borderColor: string;
+  /** Unselected card under the mouse. Empty = background unchanged / darker grey outline. */
+  hoverBackgroundColor: string;
+  hoverBorderColor: string;
   /** Width of the selected card's border, in px. */
   borderWidth: number;
   borderRadius: number;
@@ -128,6 +131,8 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   priceColor: "",
   compareColor: "",
   borderColor: "",
+  hoverBackgroundColor: "",
+  hoverBorderColor: "",
   borderWidth: 2,
   borderRadius: 10,
   spacing: 12,
@@ -156,6 +161,8 @@ export const PART_COLOR_RESET: Partial<WidgetSettings> = {
   priceColor: "",
   compareColor: "",
   borderColor: "",
+  hoverBackgroundColor: "",
+  hoverBorderColor: "",
 };
 
 /** One-click colour schemes for the style editor. */
