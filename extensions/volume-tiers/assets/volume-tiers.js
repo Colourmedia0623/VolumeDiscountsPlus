@@ -260,6 +260,7 @@
     var text = {
       each: display.eachPriceText != null ? display.eachPriceText : root.getAttribute("data-text-each") || "each",
       total: display.totalText != null ? display.totalText : "Total:",
+      lowStock: root.getAttribute("data-text-low-stock") || "Only {count} in stock",
     };
 
     var sorted = offer.tiers
@@ -313,6 +314,9 @@
       title.appendChild(tag);
       main.appendChild(title);
       if (row.subtitle) main.appendChild(el("span", "vdp-tier__subtitle", row.subtitle));
+      var stockNote = el("span", "vdp-tier__stock");
+      stockNote.hidden = true;
+      main.appendChild(stockNote);
       btn.appendChild(main);
       var prices = el("span", "vdp-tier__prices");
       var price = el("span", "vdp-tier__price");
@@ -329,23 +333,59 @@
         var next = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
         if (!next) return;
         e.preventDefault();
-        var j = (i + next + rows.length) % rows.length;
+        // Skip tiers there isn't enough stock for.
+        var j = i;
+        for (var step = 0; step < rows.length; step++) {
+          j = (j + next + rows.length) % rows.length;
+          if (!buttons[j].el.disabled) break;
+        }
+        if (j === i) return;
         select(j, true);
         buttons[j].el.focus();
       });
       list.appendChild(btn);
-      return { el: btn, tag: tag, price: price, suffix: suffix, compare: compare };
+      return { el: btn, tag: tag, price: price, suffix: suffix, compare: compare, stock: stockNote };
     });
 
     var current = -1;
 
-    function variantPrice() {
+    function currentVariant() {
       var idInput = form && form.querySelector("[name='id']");
       var id = Number(idInput && idInput.value) || product.selectedVariant;
       for (var i = 0; i < product.variants.length; i++) {
-        if (product.variants[i].id === id) return product.variants[i].price;
+        if (product.variants[i].id === id) return product.variants[i];
       }
-      return product.variants.length ? product.variants[0].price : 0;
+      return product.variants[0] || null;
+    }
+
+    function variantPrice() {
+      var v = currentVariant();
+      return v ? v.price : 0;
+    }
+
+    // Units that can be bought, or null when stock isn't limited
+    // (not tracked, or "continue selling when out of stock" is on).
+    function variantStock() {
+      var v = currentVariant();
+      return v && typeof v.stock === "number" ? v.stock : null;
+    }
+
+    // Tiers needing more than the stock left are greyed out. If the chosen tier
+    // is one of them, move to the biggest tier that can still be bought.
+    function renderStock() {
+      var stock = variantStock();
+      var best = -1;
+      rows.forEach(function (row, i) {
+        var short = stock !== null && row.qty > stock;
+        var b = buttons[i];
+        b.el.disabled = short;
+        b.el.classList.toggle("vdp-tier--unavailable", short);
+        b.stock.hidden = !short || stock <= 0;
+        b.stock.textContent = short && stock > 0 ? text.lowStock.replace(/\{count\}/g, String(stock)) : "";
+        if (!short) best = i;
+      });
+      if (current >= 0 && buttons[current].el.disabled && best >= 0) select(best, true);
+      return best;
     }
 
     function renderTotal() {
@@ -399,7 +439,7 @@
       var qty = Number(e.target.value) || 1;
       var match = 0;
       rows.forEach(function (row, i) {
-        if (qty >= row.qty) match = i;
+        if (qty >= row.qty && !buttons[i].el.disabled) match = i;
       });
       if (match !== current) select(match, false);
     }
@@ -413,6 +453,7 @@
       if (id !== lastVariant) {
         lastVariant = id;
         renderPrices();
+        renderStock();
       }
     }
     document.addEventListener("change", watchVariant);
@@ -423,6 +464,8 @@
       if (row.tier && row.index === offer.preselectTier) initial = i;
     });
     renderPrices();
+    var available = renderStock();
+    if (buttons[initial].el.disabled && available >= 0) initial = available;
     root.hidden = false;
     select(initial, true);
   }

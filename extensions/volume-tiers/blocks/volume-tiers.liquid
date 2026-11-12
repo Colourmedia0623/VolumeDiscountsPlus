@@ -15,6 +15,7 @@
     data-money-format="{{ shop.money_format | escape }}"
     data-currency="{{ cart.currency.iso_code }}"
     data-text-each="{{ 'volume_tiers.each' | t }}"
+    data-text-low-stock="{{ 'volume_tiers.low_stock' | t }}"
     style="
       --vdp-accent: {{ vdp_settings.accentColor | default: '#1f6f5c' }};
       --vdp-text: {{ vdp_settings.textColor | default: '#1a1a1a' }};
@@ -40,7 +41,13 @@
         "selectedVariant": {{ vdp_product.selected_or_first_available_variant.id | json }},
         "variants": [
           {%- for v in vdp_product.variants -%}
-            { "id": {{ v.id }}, "price": {{ v.price }} }{% unless forloop.last %},{% endunless %}
+            {%- comment -%} stock is only limited when Shopify tracks it and overselling is off. {%- endcomment -%}
+            {%- if v.inventory_management == 'shopify' and v.inventory_policy == 'deny' -%}
+              {%- assign vdp_stock = v.inventory_quantity | at_least: 0 -%}
+            {%- else -%}
+              {%- assign vdp_stock = 'null' -%}
+            {%- endif -%}
+            { "id": {{ v.id }}, "price": {{ v.price }}, "stock": {{ vdp_stock }} }{% unless forloop.last %},{% endunless %}
           {%- endfor -%}
         ]
       }
