@@ -161,7 +161,13 @@ function freeQty(tiers: Tier[], from: number) {
   return q;
 }
 
-export default function OfferEditor() {
+// Remount per offer, so opening a copy from an open offer starts with fresh state.
+export default function OfferEditorRoute() {
+  const loaded = useLoaderData<typeof loader>();
+  return <OfferEditor key={loaded.id ?? "new"} />;
+}
+
+function OfferEditor() {
   const loaded = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
@@ -178,6 +184,13 @@ export default function OfferEditor() {
   const money = moneyFormatter(loaded.currency, false, settings.currencyFormat);
 
   const saving = fetcher.state !== "idle";
+  // "Make a copy" uses the offers list's duplicate action, then opens the copy.
+  const copier = useFetcher<{ ok: boolean; message: string; openId?: number }>();
+  useEffect(() => {
+    if (copier.state !== "idle" || !copier.data) return;
+    if (copier.data.openId) navigate(`/app/offers/${copier.data.openId}?copied=1`);
+    else shopify.toast.show(copier.data.message, { isError: true });
+  }, [copier.state, copier.data, navigate, shopify]);
   // Errors from the last save, hidden again once the name is edited.
   const [errorsSeen, setErrorsSeen] = useState(false);
   const errors = errorsSeen ? [] : (fetcher.data?.errors ?? []);
@@ -194,8 +207,10 @@ export default function OfferEditor() {
   }, [fetcher.state, fetcher.data, shopify]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("saved")) {
-      shopify.toast.show("Offer created");
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("saved")) shopify.toast.show("Offer created");
+    if (search.get("copied")) {
+      shopify.toast.show("Copy created, paused. Change the products and discounts, then switch it on.");
     }
   }, [shopify]);
 
@@ -337,6 +352,19 @@ export default function OfferEditor() {
       <s-button slot="secondary-actions" onClick={() => navigate("/app")}>
         Cancel
       </s-button>
+      {loaded.id && (
+        <s-button
+          slot="secondary-actions"
+          onClick={() =>
+            copier.submit(
+              { intent: "duplicate", id: loaded.id },
+              { method: "POST", action: "/app?index" },
+            )
+          }
+        >
+          Make a copy
+        </s-button>
+      )}
 
       {loaded.builtin && (
         <s-banner

@@ -431,10 +431,12 @@ export async function setOfferStatus(
 export async function duplicateOffer(admin: Admin, shop: string, id: number) {
   const offer = await prisma.offer.findFirst({ where: { id, shop } });
   if (!offer) return null;
+  const config = parseConfig(offer.config);
   return saveOffer(admin, shop, {
-    title: `${offer.title} (copy)`,
+    title: `${offer.title} copy`,
     status: "DRAFT",
-    config: parseConfig(offer.config),
+    // Keep the exact look, even if the offer was following the store default.
+    config: { ...config, style: config.style ?? (await getSettings(shop)) },
   });
 }
 

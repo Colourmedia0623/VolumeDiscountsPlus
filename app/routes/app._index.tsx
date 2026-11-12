@@ -92,9 +92,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "delete":
         await deleteOffer(admin, session.shop, id);
         return { ok: true, message: "Offer deleted" };
-      case "duplicate":
-        await duplicateOffer(admin, session.shop, id);
-        return { ok: true, message: "Offer duplicated (paused)" };
+      case "duplicate": {
+        const copy = await duplicateOffer(admin, session.shop, id);
+        return copy
+          ? { ok: true, message: "Copy created", openId: copy.id }
+          : { ok: false, message: "Offer not found" };
+      }
       case "activate":
       case "deactivate":
         await setOfferStatus(
@@ -145,10 +148,14 @@ export default function Offers() {
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data) {
-      shopify.toast.show(fetcher.data.message, { isError: !fetcher.data.ok });
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    // A new copy opens straight in the editor, ready for new products and discounts.
+    if ("openId" in fetcher.data && fetcher.data.openId) {
+      navigate(`/app/offers/${fetcher.data.openId}?copied=1`);
+      return;
     }
-  }, [fetcher.state, fetcher.data, shopify]);
+    shopify.toast.show(fetcher.data.message, { isError: !fetcher.data.ok });
+  }, [fetcher.state, fetcher.data, shopify, navigate]);
 
   const setParams = (patch: Record<string, string | null>) =>
     setSearchParams(
@@ -318,7 +325,7 @@ export default function Offers() {
                         <s-button
                           variant="tertiary"
                           icon="duplicate"
-                          accessibilityLabel={`Duplicate ${offer.title}`}
+                          accessibilityLabel={`Copy ${offer.title}`}
                           onClick={() => submit("duplicate", offer.id)}
                         />
                         <s-button
