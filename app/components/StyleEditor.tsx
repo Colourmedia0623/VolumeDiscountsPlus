@@ -45,6 +45,7 @@ const PARTS: { id: PartId; label: string; fields: PartField[] }[] = [
     fields: [
       { key: "hoverBackgroundColor", label: "Background", optional: true },
       { key: "hoverBorderColor", label: "Outline", optional: true },
+      { key: "hoverTextColor", label: "Text", optional: true },
     ],
   },
   {
@@ -90,6 +91,7 @@ function shown(s: WidgetSettings, key: ColorKey) {
   if (key === "borderColor") return FAINT_OUTLINE;
   if (key === "hoverBorderColor") return HOVER_OUTLINE;
   if (key === "hoverBackgroundColor") return s.backgroundColor;
+  if (key === "hoverTextColor") return s.titleColor || s.textColor;
   return s.textColor;
 }
 
@@ -98,6 +100,7 @@ function fallbackText(key: ColorKey): [hint: string, reset: string] {
   if (key === "borderColor") return ["Using a faint grey.", "Use faint grey"];
   if (key === "hoverBorderColor") return ["Using a darker grey.", "Use darker grey"];
   if (key === "hoverBackgroundColor") return ["Same as the card background.", "Same as card background"];
+  if (key === "hoverTextColor") return ["Text keeps its normal colours.", "Keep normal text colours"];
   return ["Using the main text colour.", "Use main text colour"];
 }
 
@@ -526,7 +529,7 @@ function Sample({
   const gap = Math.min(s.spacing, 14);
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const card = (selected: boolean, children: ReactNode, badge?: string, id = 0) => {
+  const card = (selected: boolean, children: (hovering: boolean) => ReactNode, badge?: string, id = 0) => {
     // Unselected cards show their mouseover colours when hovered, or when
     // "Card on mouseover" is being edited (first card only).
     const hovering = !selected && (hovered === id || (part === "hover" && id === 1));
@@ -589,15 +592,19 @@ function Sample({
           boxShadow: selected ? `inset 0 0 0 2px ${s.selectedBackgroundColor}` : undefined,
         }}
       />
-      {children}
+      {children(hovering)}
     </div>
     );
   };
 
-  const body = (title: string, tag: string, sub: string, price: string, was?: string) => (
+  const body = (title: string, tag: string, sub: string, price: string, was?: string) =>
+    function cardBody(hovering: boolean) {
+    // On mouseover, one text colour (if set) replaces the per-part colours.
+    const ink = (key: ColorKey) => (hovering && s.hoverTextColor ? s.hoverTextColor : shown(s, key));
+    return (
     <>
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span data-part="title" style={{ ...hit, fontWeight: 700, color: shown(s, "titleColor"), ...ring("title") }}>
+        <span data-part="title" style={{ ...hit, fontWeight: 700, color: ink("titleColor"), ...ring("title") }}>
           {title}
         </span>
         {tag && (
@@ -627,7 +634,7 @@ function Sample({
             fontSize: 11,
             fontWeight: 600,
             opacity: 0.8,
-            color: shown(s, "subtitleColor"),
+            color: ink("subtitleColor"),
             ...ring("subtitle"),
           }}
         >
@@ -635,10 +642,10 @@ function Sample({
         </span>
       </span>
       <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-        <span data-part="price" style={{ ...hit, fontWeight: 700, color: shown(s, "priceColor"), ...ring("price") }}>
+        <span data-part="price" style={{ ...hit, fontWeight: 700, color: ink("priceColor"), ...ring("price") }}>
           {price}
         </span>
-        <span data-part="text" style={{ ...hit, fontSize: 10, opacity: 0.75, color: s.textColor, ...ring("text") }}>
+        <span data-part="text" style={{ ...hit, fontSize: 10, opacity: 0.75, color: ink("textColor"), ...ring("text") }}>
           {" "}each
         </span>
         {was && (
@@ -650,7 +657,7 @@ function Sample({
               fontSize: 11,
               textDecoration: "line-through",
               opacity: 0.55,
-              color: shown(s, "compareColor"),
+              color: ink("compareColor"),
               ...ring("compare"),
             }}
           >
@@ -659,7 +666,8 @@ function Sample({
         )}
       </span>
     </>
-  );
+    );
+  };
 
   return (
     <div

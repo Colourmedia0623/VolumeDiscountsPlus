@@ -97,6 +97,8 @@ export function TierPreview({
           const discounted = each < unitPrice - 0.004;
           const tag = config.showDiscountTag ? discountTag(config, r.tier, unitPrice, exactMoney) : "";
           const isActive = r.key === activeKey;
+          // Mouseover text colour (if set) replaces the per-part colours.
+          const hoverInk = !isActive && hovered === r.key ? s.hoverTextColor || undefined : undefined;
           const showEach = config.priceDisplay === "each";
           const price = showEach ? each : tierTotal(unitPrice, r.tier, r.qty);
           const compare = showEach ? unitPrice : unitPrice * r.qty;
@@ -126,7 +128,7 @@ export function TierPreview({
                 boxShadow: isActive
                   ? undefined
                   : `inset 0 0 0 1px ${hovered === r.key ? s.hoverBorderColor || "rgba(0,0,0,0.25)" : s.borderColor || "rgba(0,0,0,0.08)"}`,
-                color: s.textColor,
+                color: hoverInk ?? s.textColor,
                 cursor: "pointer",
                 font: "inherit",
               }}
@@ -163,7 +165,7 @@ export function TierPreview({
                 />
               )}
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 700, color: s.titleColor || undefined }}>{r.title}</span>
+                <span style={{ fontWeight: 700, color: hoverInk ?? (s.titleColor || undefined) }}>{r.title}</span>
                 {tag && (
                   <span
                     style={{
@@ -182,16 +184,16 @@ export function TierPreview({
                   </span>
                 )}
                 {r.subtitle && (
-                  <span style={{ display: "block", fontSize: 12, fontWeight: 600, opacity: 0.8, color: s.subtitleColor || undefined }}>{r.subtitle}</span>
+                  <span style={{ display: "block", fontSize: 12, fontWeight: 600, opacity: 0.8, color: hoverInk ?? (s.subtitleColor || undefined) }}>{r.subtitle}</span>
                 )}
               </span>
               <span style={{ textAlign: grid ? "center" : "right", whiteSpace: "nowrap" }}>
-                <span style={{ fontWeight: 700, color: s.priceColor || undefined }}>{money(price)}</span>
+                <span style={{ fontWeight: 700, color: hoverInk ?? (s.priceColor || undefined) }}>{money(price)}</span>
                 {showEach && config.eachPriceText && (
                   <span style={{ fontSize: 11, opacity: 0.75 }}> {config.eachPriceText}</span>
                 )}
                 {config.showCompareAt && discounted && (
-                  <span style={{ display: "block", fontSize: 12, textDecoration: "line-through", opacity: 0.55, color: s.compareColor || undefined }}>
+                  <span style={{ display: "block", fontSize: 12, textDecoration: "line-through", opacity: 0.55, color: hoverInk ?? (s.compareColor || undefined) }}>
                     {money(compare)}
                   </span>
                 )}

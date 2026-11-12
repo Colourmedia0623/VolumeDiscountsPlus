@@ -192,3 +192,19 @@
   font-size: 0.75em;
   font-weight: 600;
 }
+/* Mouseover text colour, when set, replaces the per-part text colours. */
+.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) {
+  color: var(--vdp-text-hover, var(--vdp-text));
+}
+.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__title {
+  color: var(--vdp-text-hover, var(--vdp-title, inherit));
+}
+.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__subtitle {
+  color: var(--vdp-text-hover, var(--vdp-subtitle, inherit));
+}
+.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__price {
+  color: var(--vdp-text-hover, var(--vdp-price, inherit));
+}
+.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__compare {
+  color: var(--vdp-text-hover, var(--vdp-compare, inherit));
+}
