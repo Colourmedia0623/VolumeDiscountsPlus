@@ -47,7 +47,7 @@
   text-align: center;
   opacity: 0.75;
 }
-.vdp-tier {
+.vdp-tiers .vdp-tier {
   position: relative;
   display: flex;
   align-items: center;
@@ -65,23 +65,23 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.vdp-tier:hover {
+.vdp-tiers .vdp-tier:hover {
   background: var(--vdp-bg-hover, var(--vdp-bg));
   box-shadow: inset 0 0 0 1px var(--vdp-border-hover, rgba(0, 0, 0, 0.25));
 }
-.vdp-tier:focus-visible {
+.vdp-tiers .vdp-tier:focus-visible {
   outline: 2px solid var(--vdp-accent);
   outline-offset: 2px;
 }
-.vdp-tier[aria-checked="true"] {
+.vdp-tiers .vdp-tier[aria-checked="true"] {
   border-color: var(--vdp-accent);
   box-shadow: none;
   background: var(--vdp-bg-selected);
 }
-.vdp-tier--has-badge {
+.vdp-tiers .vdp-tier--has-badge {
   margin-top: 0.6em;
 }
-.vdp-tier__badge {
+.vdp-tiers .vdp-tier__badge {
   position: absolute;
   top: -0.8em;
   right: 0.9em;
@@ -94,28 +94,28 @@
   background: var(--vdp-badge);
   border-radius: 999px;
 }
-.vdp-tier__radio {
+.vdp-tiers .vdp-tier__radio {
   flex: none;
   width: 1.05em;
   height: 1.05em;
   border: 2px solid rgba(0, 0, 0, 0.4);
   border-radius: 50%;
 }
-.vdp-tier[aria-checked="true"] .vdp-tier__radio {
+.vdp-tiers .vdp-tier[aria-checked="true"] .vdp-tier__radio {
   border-color: var(--vdp-accent);
   background: var(--vdp-accent);
   box-shadow: inset 0 0 0 0.18em var(--vdp-bg-selected);
 }
-.vdp-tier__main {
+.vdp-tiers .vdp-tier__main {
   flex: 1;
   min-width: 0;
 }
-.vdp-tier__title {
+.vdp-tiers .vdp-tier__title {
   display: block;
   font-weight: 700;
   color: var(--vdp-title, inherit);
 }
-.vdp-tier__tag {
+.vdp-tiers .vdp-tier__tag {
   display: inline-block;
   margin-left: 0.45em;
   padding: 0.1em 0.45em;
@@ -127,26 +127,26 @@
   background: var(--vdp-tag, var(--vdp-accent));
   border-radius: 4px;
 }
-.vdp-tier__subtitle {
+.vdp-tiers .vdp-tier__subtitle {
   display: block;
   font-size: 0.8em;
   font-weight: 600;
   opacity: 0.8;
   color: var(--vdp-subtitle, inherit);
 }
-.vdp-tier__prices {
+.vdp-tiers .vdp-tier__prices {
   text-align: right;
   white-space: nowrap;
 }
-.vdp-tier__price {
+.vdp-tiers .vdp-tier__price {
   font-weight: 700;
   color: var(--vdp-price, inherit);
 }
-.vdp-tier__each {
+.vdp-tiers .vdp-tier__each {
   font-size: 0.75em;
   opacity: 0.75;
 }
-.vdp-tier__compare {
+.vdp-tiers .vdp-tier__compare {
   display: block;
   font-size: 0.82em;
   text-decoration: line-through;
@@ -180,31 +180,61 @@
 .vdp-tiers--grid .vdp-tier--has-badge {
   margin-top: 0;
 }
-.vdp-tier:disabled,
-.vdp-tier:disabled:hover {
+.vdp-tiers .vdp-tier:disabled,
+.vdp-tiers .vdp-tier:disabled:hover {
   cursor: not-allowed;
   opacity: 0.45;
   background: var(--vdp-bg);
   box-shadow: inset 0 0 0 1px var(--vdp-border, rgba(0, 0, 0, 0.1));
 }
-.vdp-tier__stock {
+.vdp-tiers .vdp-tier__stock {
   display: block;
   font-size: 0.75em;
   font-weight: 600;
 }
 /* Mouseover text colour, when set, replaces the per-part text colours. */
-.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) {
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) {
   color: var(--vdp-text-hover, var(--vdp-text));
 }
-.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__title {
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__title {
   color: var(--vdp-text-hover, var(--vdp-title, inherit));
 }
-.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__subtitle {
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__subtitle {
   color: var(--vdp-text-hover, var(--vdp-subtitle, inherit));
 }
-.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__price {
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__price {
   color: var(--vdp-text-hover, var(--vdp-price, inherit));
 }
-.vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__compare {
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) .vdp-tier__compare {
   color: var(--vdp-text-hover, var(--vdp-compare, inherit));
+}
+/*
+ * Themes often style every <button> (e.g. black background and white text on
+ * hover). The tier cards are buttons, so pin their own colours in every state.
+ */
+.vdp-tiers .vdp-tier,
+.vdp-tiers .vdp-tier:focus,
+.vdp-tiers .vdp-tier:active {
+  color: var(--vdp-text);
+  background: var(--vdp-bg);
+  text-transform: none;
+  letter-spacing: normal;
+  min-height: 0;
+  transform: none;
+  text-decoration: none;
+}
+.vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) {
+  color: var(--vdp-text-hover, var(--vdp-text));
+  background: var(--vdp-bg-hover, var(--vdp-bg));
+  transform: none;
+}
+.vdp-tiers .vdp-tier[aria-checked="true"],
+.vdp-tiers .vdp-tier[aria-checked="true"]:hover,
+.vdp-tiers .vdp-tier[aria-checked="true"]:focus {
+  color: var(--vdp-text);
+  background: var(--vdp-bg-selected);
+}
+.vdp-tiers .vdp-tier::before,
+.vdp-tiers .vdp-tier::after {
+  content: none;
 }
