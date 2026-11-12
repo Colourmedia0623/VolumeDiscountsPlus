@@ -180,6 +180,8 @@
     priceColor: "--vdp-price",
     compareColor: "--vdp-compare",
     borderColor: "--vdp-border",
+    hoverBackgroundColor: "--vdp-bg-hover",
+    hoverBorderColor: "--vdp-border-hover",
   };
 
   function applyStyle(root, style) {
@@ -187,7 +189,7 @@
     Object.keys(STYLE_VARS).forEach(function (key) {
       if (style[key]) root.style.setProperty(STYLE_VARS[key], style[key]);
       // Optional part colours: empty means "inherit", so clear any earlier value.
-      else if (/^(heading|title|subtitle|price|compare|border)Color$/.test(key)) root.style.removeProperty(STYLE_VARS[key]);
+      else if (/^(heading|title|subtitle|price|compare|border|hoverBackground|hoverBorder)Color$/.test(key)) root.style.removeProperty(STYLE_VARS[key]);
     });
     if (style.borderRadius != null) root.style.setProperty("--vdp-radius", style.borderRadius + "px");
     if (style.spacing != null) root.style.setProperty("--vdp-space", style.spacing + "px");

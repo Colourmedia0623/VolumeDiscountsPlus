@@ -63,6 +63,7 @@ export function TierPreview({
   currencyFormat?: CurrencyFormat;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const money = moneyFormatter(currency, config.hideDecimals, currencyFormat);
   const exactMoney = moneyFormatter(currency, false, currencyFormat);
 
@@ -104,6 +105,8 @@ export function TierPreview({
               type="button"
               key={r.key}
               onClick={() => setSelected(r.key)}
+              onMouseEnter={() => setHovered(r.key)}
+              onMouseLeave={() => setHovered(null)}
               style={{
                 position: "relative",
                 display: "flex",
@@ -115,8 +118,14 @@ export function TierPreview({
                 marginTop: r.badge && !grid ? 8 : 0,
                 borderRadius: s.borderRadius,
                 border: `${s.borderWidth ?? 2}px solid ${isActive ? s.accentColor : "transparent"}`,
-                background: isActive ? s.selectedBackgroundColor : s.backgroundColor,
-                boxShadow: isActive ? undefined : `inset 0 0 0 1px ${s.borderColor || "rgba(0,0,0,0.08)"}`,
+                background: isActive
+                  ? s.selectedBackgroundColor
+                  : hovered === r.key
+                    ? s.hoverBackgroundColor || s.backgroundColor
+                    : s.backgroundColor,
+                boxShadow: isActive
+                  ? undefined
+                  : `inset 0 0 0 1px ${hovered === r.key ? s.hoverBorderColor || "rgba(0,0,0,0.25)" : s.borderColor || "rgba(0,0,0,0.08)"}`,
                 color: s.textColor,
                 cursor: "pointer",
                 font: "inherit",

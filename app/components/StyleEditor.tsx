@@ -12,6 +12,7 @@ type ColorKey = {
 type PartId =
   | "heading"
   | "card"
+  | "hover"
   | "selected"
   | "title"
   | "tag"
@@ -36,6 +37,14 @@ const PARTS: { id: PartId; label: string; fields: PartField[] }[] = [
     fields: [
       { key: "backgroundColor", label: "Background" },
       { key: "borderColor", label: "Outline", optional: true },
+    ],
+  },
+  {
+    id: "hover",
+    label: "Card on mouseover",
+    fields: [
+      { key: "hoverBackgroundColor", label: "Background", optional: true },
+      { key: "hoverBorderColor", label: "Outline", optional: true },
     ],
   },
   {
@@ -70,6 +79,7 @@ const PARTS: { id: PartId; label: string; fields: PartField[] }[] = [
 ];
 
 const FAINT_OUTLINE = "#e1e1e1";
+const HOVER_OUTLINE = "#bfbfbf";
 const INK = "#303030";
 const HILITE = "#2c6ecb";
 
@@ -77,7 +87,18 @@ const HILITE = "#2c6ecb";
 function shown(s: WidgetSettings, key: ColorKey) {
   const v = s[key];
   if (v) return v;
-  return key === "borderColor" ? FAINT_OUTLINE : s.textColor;
+  if (key === "borderColor") return FAINT_OUTLINE;
+  if (key === "hoverBorderColor") return HOVER_OUTLINE;
+  if (key === "hoverBackgroundColor") return s.backgroundColor;
+  return s.textColor;
+}
+
+/** What an empty optional colour falls back to, for the hint and reset button. */
+function fallbackText(key: ColorKey): [hint: string, reset: string] {
+  if (key === "borderColor") return ["Using a faint grey.", "Use faint grey"];
+  if (key === "hoverBorderColor") return ["Using a darker grey.", "Use darker grey"];
+  if (key === "hoverBackgroundColor") return ["Same as the card background.", "Same as card background"];
+  return ["Using the main text colour.", "Use main text colour"];
 }
 
 function samePalette(s: WidgetSettings, colors: Partial<WidgetSettings>) {
@@ -294,11 +315,7 @@ export function StyleEditor({
                     label={f.label}
                     value={shown(s, f.key)}
                     details={
-                      f.optional && !s[f.key]
-                        ? f.key === "borderColor"
-                          ? "Using a faint grey."
-                          : "Using the main text colour."
-                        : undefined
+                      f.optional && !s[f.key] ? fallbackText(f.key)[0] : undefined
                     }
                     onChange={(e) => onChange({ [f.key]: e.currentTarget.value } as Partial<WidgetSettings>)}
                   />
@@ -307,7 +324,7 @@ export function StyleEditor({
                       variant="tertiary"
                       onClick={() => onChange({ [f.key]: "" } as Partial<WidgetSettings>)}
                     >
-                      {f.key === "borderColor" ? "Use faint grey" : "Use main text colour"}
+                      {fallbackText(f.key)[1]}
                     </s-button>
                   )}
                 </s-stack>
@@ -466,10 +483,18 @@ function Sample({
     part === p ? { outline: `2px dashed ${HILITE}`, outlineOffset: 2, borderRadius: 3 } : {};
   const hit: CSSProperties = { cursor: "pointer" };
   const gap = Math.min(s.spacing, 14);
+  const [hovered, setHovered] = useState<number | null>(null);
 
-  const card = (selected: boolean, children: ReactNode, badge?: string) => (
+  const card = (selected: boolean, children: ReactNode, badge?: string, id = 0) => {
+    // Unselected cards show their mouseover colours when hovered, or when
+    // "Card on mouseover" is being edited (first card only).
+    const hovering = !selected && (hovered === id || (part === "hover" && id === 1));
+    const myPart: PartId = selected ? "selected" : hovering ? "hover" : "card";
+    return (
     <div
-      data-part={selected ? "selected" : "card"}
+      data-part={myPart}
+      onMouseEnter={() => !selected && setHovered(id)}
+      onMouseLeave={() => setHovered(null)}
       style={{
         ...hit,
         position: "relative",
@@ -479,11 +504,15 @@ function Sample({
         padding: `${gap}px ${gap + 2}px`,
         marginTop: badge ? 8 : 0,
         borderRadius: s.borderRadius,
-        background: selected ? s.selectedBackgroundColor : s.backgroundColor,
+        background: selected
+          ? s.selectedBackgroundColor
+          : hovering
+            ? shown(s, "hoverBackgroundColor")
+            : s.backgroundColor,
         boxShadow: selected
           ? `inset 0 0 0 ${s.borderWidth}px ${s.accentColor}`
-          : `inset 0 0 0 1px ${s.borderColor || "rgba(0,0,0,0.12)"}`,
-        ...(part === (selected ? "selected" : "card")
+          : `inset 0 0 0 1px ${hovering ? shown(s, "hoverBorderColor") : s.borderColor || "rgba(0,0,0,0.12)"}`,
+        ...(part === myPart
           ? { outline: `2px dashed ${HILITE}`, outlineOffset: 3 }
           : {}),
       }}
@@ -521,7 +550,8 @@ function Sample({
       />
       {children}
     </div>
-  );
+    );
+  };
 
   const body = (title: string, tag: string, sub: string, price: string, was?: string) => (
     <>
@@ -610,9 +640,9 @@ function Sample({
       >
         Buy more, save more
       </div>
-      {card(false, body("1 item", "", "Standard price", money(10)))}
+      {card(false, body("1 item", "", "Standard price", money(10)), undefined, 1)}
       {card(true, body("2 – 4 items", "10% OFF", "Great for gifts", money(9), money(10)), "Most popular")}
-      {card(false, body("5+ items", "20% OFF", "Best value", money(8), money(10)))}
+      {card(false, body("5+ items", "20% OFF", "Best value", money(8), money(10)), undefined, 3)}
     </div>
   );
 }
