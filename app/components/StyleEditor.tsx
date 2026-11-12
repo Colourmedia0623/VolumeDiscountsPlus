@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import {
   PALETTES,
   PART_COLOR_RESET,
@@ -319,14 +319,20 @@ export function StyleEditor({
                     }
                     onChange={(e) => onChange({ [f.key]: e.currentTarget.value } as Partial<WidgetSettings>)}
                   />
-                  {f.optional && s[f.key] && (
-                    <s-button
-                      variant="tertiary"
-                      onClick={() => onChange({ [f.key]: "" } as Partial<WidgetSettings>)}
-                    >
-                      {fallbackText(f.key)[1]}
-                    </s-button>
-                  )}
+                  <s-stack direction="inline" gap="small-200">
+                    <EyeDropperButton
+                      label={`${active.label} ${f.label.toLowerCase()}`}
+                      onPick={(hex) => onChange({ [f.key]: hex } as Partial<WidgetSettings>)}
+                    />
+                    {f.optional && s[f.key] && (
+                      <s-button
+                        variant="tertiary"
+                        onClick={() => onChange({ [f.key]: "" } as Partial<WidgetSettings>)}
+                      >
+                        {fallbackText(f.key)[1]}
+                      </s-button>
+                    )}
+                  </s-stack>
                 </s-stack>
               ))}
             </div>
@@ -334,6 +340,41 @@ export function StyleEditor({
         </div>
       </Group>
     </s-stack>
+  );
+}
+
+const noSubscribe = () => () => {};
+
+interface EyeDropperLike {
+  open: () => Promise<{ sRGBHex: string }>;
+}
+
+/**
+ * "Pick from screen": the browser's eyedropper (Chrome and Edge) lets the
+ * merchant click any pixel on screen, including another website in another
+ * window, and use that colour. Hidden where the browser doesn't support it.
+ */
+function EyeDropperButton({ label, onPick }: { label: string; onPick: (hex: string) => void }) {
+  // False during server rendering, then the browser's real answer.
+  const supported = useSyncExternalStore(
+    noSubscribe,
+    () => "EyeDropper" in window,
+    () => false,
+  );
+  if (!supported) return null;
+  const pick = async () => {
+    try {
+      const Ctor = (window as unknown as { EyeDropper: new () => EyeDropperLike }).EyeDropper;
+      const { sRGBHex } = await new Ctor().open();
+      onPick(sRGBHex);
+    } catch {
+      // Cancelled with Esc.
+    }
+  };
+  return (
+    <s-button icon="eye-dropper" accessibilityLabel={`Pick ${label} from screen`} onClick={pick}>
+      Pick from screen
+    </s-button>
   );
 }
 
