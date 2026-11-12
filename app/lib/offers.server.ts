@@ -241,33 +241,52 @@ async function createBuiltinDiscounts(
               appliesOnEachItem: true,
             },
           };
-    const data = await gql(
-      admin,
-      `#graphql
-      mutation VdpCreateBuiltin($discount: DiscountAutomaticBasicInput!) {
-        discountAutomaticBasicCreate(automaticBasicDiscount: $discount) {
-          automaticDiscountNode { id }
-          userErrors { field message }
-        }
-      }`,
-      {
-        discount: {
-          // Shown to shoppers in cart and checkout.
-          title:
-            tier.label ||
-            config.message.replace(/\{qty\}/g, String(tier.minQty)) ||
-            `${title}: ${tierTitle}`,
-          startsAt: base.startsAt,
-          endsAt: base.endsAt,
-          // Tiers must never stack with each other.
-          combinesWith: { ...config.combinesWith, productDiscounts: false },
-          minimumRequirement: {
-            quantity: { greaterThanOrEqualToQuantity: String(tier.minQty) },
+    // Shown to shoppers in cart and checkout.
+    const shopperTitle =
+      tier.label ||
+      config.message.replace(/\{qty\}/g, String(tier.minQty)) ||
+      `${title}: ${tierTitle}`;
+    // Shopify needs automatic discount titles to be unique, so a copied offer
+    // (or two offers with the same tier text) gets the offer name added.
+    const candidates = [
+      shopperTitle,
+      `${shopperTitle} (${title})`,
+      `${shopperTitle} (${title}) ${Date.now().toString(36)}`,
+    ];
+    let data: any;
+    for (const [n, candidate] of candidates.entries()) {
+      data = await gql(
+        admin,
+        `#graphql
+        mutation VdpCreateBuiltin($discount: DiscountAutomaticBasicInput!) {
+          discountAutomaticBasicCreate(automaticBasicDiscount: $discount) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`,
+        {
+          discount: {
+            title: candidate,
+            startsAt: base.startsAt,
+            endsAt: base.endsAt,
+            // Tiers must never stack with each other.
+            combinesWith: { ...config.combinesWith, productDiscounts: false },
+            minimumRequirement: {
+              quantity: { greaterThanOrEqualToQuantity: String(tier.minQty) },
+            },
+            customerGets: { value, items: builtinItems(config) },
           },
-          customerGets: { value, items: builtinItems(config) },
         },
-      },
-    );
+      );
+      const errs: { field?: string[] | null; message: string }[] =
+        data.discountAutomaticBasicCreate.userErrors ?? [];
+      const titleTaken = errs.some(
+        (e) =>
+          e.field?.includes("title") ||
+          /title|unique|already|taken|exists/i.test(e.message),
+      );
+      if (!titleTaken || n === candidates.length - 1) break;
+    }
     try {
       throwUserErrors(data.discountAutomaticBasicCreate.userErrors);
     } catch (e) {
