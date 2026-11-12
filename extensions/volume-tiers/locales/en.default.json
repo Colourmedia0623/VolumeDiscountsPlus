@@ -1,5 +1,6 @@
 {
   "volume_tiers": {
-    "each": "each"
+    "each": "each",
+    "low_stock": "Only {count} in stock"
   }
 }
