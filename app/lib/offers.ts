@@ -105,6 +105,8 @@ export interface WidgetSettings {
   /** Unselected card under the mouse. Empty = background unchanged / darker grey outline. */
   hoverBackgroundColor: string;
   hoverBorderColor: string;
+  /** All text in an unselected card under the mouse. Empty = unchanged. */
+  hoverTextColor: string;
   /** Width of the selected card's border, in px. */
   borderWidth: number;
   borderRadius: number;
@@ -133,6 +135,7 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   borderColor: "",
   hoverBackgroundColor: "",
   hoverBorderColor: "",
+  hoverTextColor: "",
   borderWidth: 2,
   borderRadius: 10,
   spacing: 12,
@@ -163,6 +166,7 @@ export const PART_COLOR_RESET: Partial<WidgetSettings> = {
   borderColor: "",
   hoverBackgroundColor: "",
   hoverBorderColor: "",
+  hoverTextColor: "",
 };
 
 /** One-click colour schemes for the style editor. */
