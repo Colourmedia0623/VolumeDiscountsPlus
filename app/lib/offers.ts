@@ -94,6 +94,16 @@ export interface WidgetSettings {
   /** Discount tag ("5% OFF") colours. */
   tagColor: string;
   tagTextColor: string;
+  /** Per-part text colours. Empty = use textColor. */
+  headingColor: string;
+  titleColor: string;
+  subtitleColor: string;
+  priceColor: string;
+  compareColor: string;
+  /** Outline of unselected cards. Empty = a faint grey. */
+  borderColor: string;
+  /** Width of the selected card's border, in px. */
+  borderWidth: number;
   borderRadius: number;
   /** Gap between cards and their inner padding, in px. */
   spacing: number;
@@ -112,6 +122,13 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   badgeTextColor: "#1a1a1a",
   tagColor: "#1f6f5c",
   tagTextColor: "#ffffff",
+  headingColor: "",
+  titleColor: "",
+  subtitleColor: "",
+  priceColor: "",
+  compareColor: "",
+  borderColor: "",
+  borderWidth: 2,
   borderRadius: 10,
   spacing: 12,
   layout: "stack",
@@ -130,6 +147,16 @@ type Palette = Pick<
   | "tagColor"
   | "tagTextColor"
 >;
+
+/** Per-part colours a colour scheme resets, so the scheme shows as designed. */
+export const PART_COLOR_RESET: Partial<WidgetSettings> = {
+  headingColor: "",
+  titleColor: "",
+  subtitleColor: "",
+  priceColor: "",
+  compareColor: "",
+  borderColor: "",
+};
 
 /** One-click colour schemes for the style editor. */
 export const PALETTES: { name: string; colors: Palette }[] = [

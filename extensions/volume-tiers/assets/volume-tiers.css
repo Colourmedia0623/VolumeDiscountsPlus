@@ -9,6 +9,7 @@
   margin: 0 0 0.75em;
   font-weight: 600;
   text-align: center;
+  color: var(--vdp-heading, inherit);
 }
 .vdp-tiers__heading::before,
 .vdp-tiers__heading::after {
@@ -58,8 +59,8 @@
   font: inherit;
   color: var(--vdp-text);
   background: var(--vdp-bg);
-  border: 2px solid transparent;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  border: var(--vdp-border-width, 2px) solid transparent;
+  box-shadow: inset 0 0 0 1px var(--vdp-border, rgba(0, 0, 0, 0.1));
   border-radius: var(--vdp-radius);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
@@ -111,6 +112,7 @@
 .vdp-tier__title {
   display: block;
   font-weight: 700;
+  color: var(--vdp-title, inherit);
 }
 .vdp-tier__tag {
   display: inline-block;
@@ -129,6 +131,7 @@
   font-size: 0.8em;
   font-weight: 600;
   opacity: 0.8;
+  color: var(--vdp-subtitle, inherit);
 }
 .vdp-tier__prices {
   text-align: right;
@@ -136,6 +139,7 @@
 }
 .vdp-tier__price {
   font-weight: 700;
+  color: var(--vdp-price, inherit);
 }
 .vdp-tier__each {
   font-size: 0.75em;
@@ -146,6 +150,7 @@
   font-size: 0.82em;
   text-decoration: line-through;
   opacity: 0.55;
+  color: var(--vdp-compare, inherit);
 }
 .vdp-tiers--grid .vdp-tier {
   flex-direction: column;
