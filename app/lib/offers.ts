@@ -69,6 +69,14 @@ export interface OfferConfig {
   hideDecimals: boolean;
   /** Small print under the cards. Empty hides it. */
   footerText: string;
+  /**
+   * Tiers needing more than the stock left: "message" keeps them selectable
+   * with a warning line; "disable" greys them out.
+   */
+  stockMode: "message" | "disable";
+  /** {count} = units left. */
+  lowStockText: string;
+  outOfStockText: string;
   /** This offer's colours and layout. Null = the store's default style. */
   style: WidgetSettings | null;
   /** Show a "Buy 1, standard price" card before the discount tiers. */
@@ -107,6 +115,8 @@ export interface WidgetSettings {
   hoverBorderColor: string;
   /** All text in an unselected card under the mouse. Empty = unchanged. */
   hoverTextColor: string;
+  /** Not-enough-stock warning on a tier. */
+  stockWarningColor: string;
   /** Width of the selected card's border, in px. */
   borderWidth: number;
   borderRadius: number;
@@ -136,6 +146,7 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   hoverBackgroundColor: "",
   hoverBorderColor: "",
   hoverTextColor: "",
+  stockWarningColor: "#d72c0d",
   borderWidth: 2,
   borderRadius: 10,
   spacing: 12,
@@ -327,6 +338,9 @@ export function defaultOfferConfig(): OfferConfig {
     totalText: "Total:",
     hideDecimals: false,
     footerText: "",
+    stockMode: "message",
+    lowStockText: "Only {count} left in stock",
+    outOfStockText: "This product is out of stock!",
     style: null,
     showSingleTier: true,
     preselectTier: 1,

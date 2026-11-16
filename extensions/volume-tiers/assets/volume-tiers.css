@@ -189,8 +189,10 @@
 }
 .vdp-tiers .vdp-tier__stock {
   display: block;
+  margin-top: 0.15em;
   font-size: 0.75em;
   font-weight: 600;
+  color: var(--vdp-stock, #d72c0d);
 }
 /* Mouseover text colour, when set, replaces the per-part text colours. */
 .vdp-tiers .vdp-tier:hover:not([aria-checked="true"]):not(:disabled) {

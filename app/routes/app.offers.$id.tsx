@@ -845,6 +845,30 @@ function OfferEditor() {
             value={config.footerText}
             onInput={(e) => update({ footerText: e.currentTarget.value })}
           />
+          <s-select
+            label="When there isn’t enough stock for a tier"
+            details="Only for products where Shopify tracks stock and overselling is off."
+            value={config.stockMode}
+            onChange={(e) =>
+              update({ stockMode: e.currentTarget.value as OfferConfig["stockMode"] })
+            }
+          >
+            <s-option value="message">Show a warning on the tier</s-option>
+            <s-option value="disable">Grey the tier out so it can’t be picked</s-option>
+          </s-select>
+          <s-grid gridTemplateColumns="1fr 1fr" gap="base">
+            <s-text-field
+              label="Low stock warning"
+              details="{count} is replaced by the number left."
+              value={config.lowStockText}
+              onInput={(e) => update({ lowStockText: e.currentTarget.value })}
+            />
+            <s-text-field
+              label="Out of stock warning"
+              value={config.outOfStockText}
+              onInput={(e) => update({ outOfStockText: e.currentTarget.value })}
+            />
+          </s-grid>
         </s-stack>
       </s-section>
 
