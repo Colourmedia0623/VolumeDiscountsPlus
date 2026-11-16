@@ -183,6 +183,7 @@
     hoverBackgroundColor: "--vdp-bg-hover",
     hoverBorderColor: "--vdp-border-hover",
     hoverTextColor: "--vdp-text-hover",
+    stockWarningColor: "--vdp-stock",
   };
 
   function applyStyle(root, style) {
@@ -261,7 +262,8 @@
     var text = {
       each: display.eachPriceText != null ? display.eachPriceText : root.getAttribute("data-text-each") || "each",
       total: display.totalText != null ? display.totalText : "Total:",
-      lowStock: root.getAttribute("data-text-low-stock") || "Only {count} in stock",
+      lowStock: display.lowStockText || root.getAttribute("data-text-low-stock") || "Only {count} left in stock",
+      outOfStock: display.outOfStockText || "This product is out of stock!",
     };
 
     var sorted = offer.tiers
@@ -373,17 +375,22 @@
 
     // Tiers needing more than the stock left are greyed out. If the chosen tier
     // is one of them, move to the biggest tier that can still be bought.
+    // A tier needing more than the stock left shows a warning line. In
+    // "disable" mode it's also greyed out and the selection moves to the
+    // biggest tier that can still be bought.
     function renderStock() {
       var stock = variantStock();
+      var disable = display.stockMode === "disable";
       var best = -1;
       rows.forEach(function (row, i) {
         var short = stock !== null && row.qty > stock;
         var b = buttons[i];
-        b.el.disabled = short;
-        b.el.classList.toggle("vdp-tier--unavailable", short);
-        b.stock.hidden = !short || stock <= 0;
-        b.stock.textContent = short && stock > 0 ? text.lowStock.replace(/\{count\}/g, String(stock)) : "";
-        if (!short) best = i;
+        b.el.disabled = short && disable;
+        b.el.classList.toggle("vdp-tier--short", short);
+        var note = !short ? "" : stock > 0 ? text.lowStock.replace(/\{count\}/g, String(stock)) : text.outOfStock;
+        b.stock.textContent = note;
+        b.stock.hidden = !note;
+        if (!b.el.disabled) best = i;
       });
       if (current >= 0 && buttons[current].el.disabled && best >= 0) select(best, true);
       return best;

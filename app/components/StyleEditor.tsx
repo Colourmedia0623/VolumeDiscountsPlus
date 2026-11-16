@@ -20,7 +20,8 @@ type PartId =
   | "price"
   | "compare"
   | "badge"
-  | "text";
+  | "text"
+  | "stock";
 
 interface PartField {
   key: ColorKey;
@@ -77,6 +78,7 @@ const PARTS: { id: PartId; label: string; fields: PartField[] }[] = [
     ],
   },
   { id: "text", label: "Other text", fields: [{ key: "textColor", label: "Main text colour" }] },
+  { id: "stock", label: "Stock warning", fields: [{ key: "stockWarningColor", label: "Text" }] },
 ];
 
 const FAINT_OUTLINE = "#e1e1e1";
@@ -597,7 +599,7 @@ function Sample({
     );
   };
 
-  const body = (title: string, tag: string, sub: string, price: string, was?: string) =>
+  const body = (title: string, tag: string, sub: string, price: string, was?: string, stockNote?: string) =>
     function cardBody(hovering: boolean) {
     // On mouseover, one text colour (if set) replaces the per-part colours.
     const ink = (key: ColorKey) => (hovering && s.hoverTextColor ? s.hoverTextColor : shown(s, key));
@@ -640,6 +642,21 @@ function Sample({
         >
           {sub}
         </span>
+        {stockNote && (
+          <span
+            data-part="stock"
+            style={{
+              ...hit,
+              display: "block",
+              fontSize: 10,
+              fontWeight: 600,
+              color: s.stockWarningColor,
+              ...ring("stock"),
+            }}
+          >
+            {stockNote}
+          </span>
+        )}
       </span>
       <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>
         <span data-part="price" style={{ ...hit, fontWeight: 700, color: ink("priceColor"), ...ring("price") }}>
@@ -691,7 +708,7 @@ function Sample({
       </div>
       {card(false, body("1 item", "", "Standard price", money(10)), undefined, 1)}
       {card(true, body("2 – 4 items", "10% OFF", "Great for gifts", money(9), money(10)), "Most popular")}
-      {card(false, body("5+ items", "20% OFF", "Best value", money(8), money(10)), undefined, 3)}
+      {card(false, body("5+ items", "20% OFF", "Best value", money(8), money(10), "Only 4 left in stock"), undefined, 3)}
     </div>
   );
 }

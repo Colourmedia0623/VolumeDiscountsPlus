@@ -534,6 +534,9 @@ export async function publishWidgetData(admin: Admin, shop: string) {
           totalText: config.totalText,
           hideDecimals: config.hideDecimals,
           footerText: config.footerText,
+          stockMode: config.stockMode,
+          lowStockText: config.lowStockText,
+          outOfStockText: config.outOfStockText,
         },
         // Each offer carries its own style; offers without one use the store default.
         style: config.style ?? settings,
