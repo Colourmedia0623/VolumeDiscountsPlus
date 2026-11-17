@@ -264,6 +264,7 @@
       total: display.totalText != null ? display.totalText : "Total:",
       lowStock: display.lowStockText || root.getAttribute("data-text-low-stock") || "Only {count} left in stock",
       outOfStock: display.outOfStockText || "This product is out of stock!",
+      lowerQty: display.lowerQtyText || "Please choose a smaller quantity.",
     };
 
     var sorted = offer.tiers
@@ -519,6 +520,41 @@
     });
     window.addEventListener("pageshow", function (e) {
       if (e.persisted) refreshCart();
+    });
+
+    // Stop Add to basket asking for more than is left. Otherwise Shopify adds
+    // what it has (e.g. 65 of 72) and the theme shows an error anyway.
+    // Capture phase on window runs before the theme's own handlers.
+    var alertEl = el("div", "vdp-tiers__alert");
+    alertEl.setAttribute("role", "alert");
+    alertEl.hidden = true;
+    root.appendChild(alertEl);
+    function requestedQty() {
+      var inputs = quantityInputs(form);
+      return inputs.length ? Number(inputs[0].value) || 1 : 1;
+    }
+    function blockIfShort(e) {
+      if (!form) return;
+      var t = e.target;
+      var btn = e.type === "click" && t && t.closest ? t.closest("[type='submit'], [name='add']") : null;
+      var isAdd = (e.type === "submit" && t === form) || (btn && (btn.form === form || form.contains(btn)));
+      if (!isAdd) return;
+      var stock = variantStock();
+      var qty = requestedQty();
+      if (stock === null || qty <= stock) {
+        alertEl.hidden = true;
+        return;
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      alertEl.textContent =
+        stock > 0 ? text.lowStock.replace(/\{count\}/g, String(stock)) + ". " + text.lowerQty : text.outOfStock;
+      alertEl.hidden = false;
+    }
+    window.addEventListener("click", blockIfShort, true);
+    window.addEventListener("submit", blockIfShort, true);
+    document.addEventListener("change", function (e) {
+      if (e.target && e.target.name === "quantity") alertEl.hidden = true;
     });
   }
 
