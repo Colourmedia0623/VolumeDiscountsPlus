@@ -240,3 +240,12 @@
 .vdp-tiers .vdp-tier::after {
   content: none;
 }
+.vdp-tiers__alert {
+  margin-top: 0.6em;
+  padding: 0.55em 0.8em;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--vdp-stock, #d72c0d);
+  background: color-mix(in srgb, var(--vdp-stock, #d72c0d) 8%, transparent);
+  border-radius: 6px;
+}

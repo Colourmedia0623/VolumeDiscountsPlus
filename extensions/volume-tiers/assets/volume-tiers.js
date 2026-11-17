@@ -264,6 +264,7 @@
       total: display.totalText != null ? display.totalText : "Total:",
       lowStock: display.lowStockText || root.getAttribute("data-text-low-stock") || "Only {count} left in stock",
       outOfStock: display.outOfStockText || "This product is out of stock!",
+      lowerQty: display.lowerQtyText || "Please choose a smaller quantity.",
     };
 
     var sorted = offer.tiers
@@ -368,9 +369,30 @@
 
     // Units that can be bought, or null when stock isn't limited
     // (not tracked, or "continue selling when out of stock" is on).
+    // Units of each variant already in the basket, so "Only X left" counts
+    // what can still be added (the theme refuses more than that).
+    var inCart = {};
+    function refreshCart() {
+      var rootUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || "/";
+      fetch(rootUrl + "cart.js", { credentials: "same-origin", headers: { Accept: "application/json" } })
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (cart) {
+          if (!cart || !cart.items) return;
+          inCart = {};
+          cart.items.forEach(function (item) {
+            inCart[item.variant_id] = (inCart[item.variant_id] || 0) + item.quantity;
+          });
+          renderStock();
+        })
+        .catch(function () {});
+    }
+
     function variantStock() {
       var v = currentVariant();
-      return v && typeof v.stock === "number" ? v.stock : null;
+      if (!v || typeof v.stock !== "number") return null;
+      return Math.max(0, v.stock - (inCart[v.id] || 0));
     }
 
     // Tiers needing more than the stock left are greyed out. If the chosen tier
@@ -476,6 +498,64 @@
     if (buttons[initial].el.disabled && available >= 0) initial = available;
     root.hidden = false;
     select(initial, true);
+
+    // Keep the basket count current: on load, after adding to the basket, and
+    // on the cart events common themes fire.
+    refreshCart();
+    if (form) {
+      form.addEventListener("submit", function () {
+        setTimeout(refreshCart, 1500);
+      });
+      // AJAX themes often skip the submit event and just handle the button click.
+      form.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest("[type='submit'], [name='add']")) {
+          setTimeout(refreshCart, 1500);
+        }
+      });
+    }
+    ["cart:updated", "cart:refresh", "cart:change", "cart-update", "ajaxProduct:added"].forEach(function (name) {
+      document.addEventListener(name, function () {
+        setTimeout(refreshCart, 300);
+      });
+    });
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted) refreshCart();
+    });
+
+    // Stop Add to basket asking for more than is left. Otherwise Shopify adds
+    // what it has (e.g. 65 of 72) and the theme shows an error anyway.
+    // Capture phase on window runs before the theme's own handlers.
+    var alertEl = el("div", "vdp-tiers__alert");
+    alertEl.setAttribute("role", "alert");
+    alertEl.hidden = true;
+    root.appendChild(alertEl);
+    function requestedQty() {
+      var inputs = quantityInputs(form);
+      return inputs.length ? Number(inputs[0].value) || 1 : 1;
+    }
+    function blockIfShort(e) {
+      if (!form) return;
+      var t = e.target;
+      var btn = e.type === "click" && t && t.closest ? t.closest("[type='submit'], [name='add']") : null;
+      var isAdd = (e.type === "submit" && t === form) || (btn && (btn.form === form || form.contains(btn)));
+      if (!isAdd) return;
+      var stock = variantStock();
+      var qty = requestedQty();
+      if (stock === null || qty <= stock) {
+        alertEl.hidden = true;
+        return;
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      alertEl.textContent =
+        stock > 0 ? text.lowStock.replace(/\{count\}/g, String(stock)) + ". " + text.lowerQty : text.outOfStock;
+      alertEl.hidden = false;
+    }
+    window.addEventListener("click", blockIfShort, true);
+    window.addEventListener("submit", blockIfShort, true);
+    document.addEventListener("change", function (e) {
+      if (e.target && e.target.name === "quantity") alertEl.hidden = true;
+    });
   }
 
   function boot() {
