@@ -299,6 +299,137 @@ async function createBuiltinDiscounts(
   return ids;
 }
 
+const OFFER_TAG_KEY = "offer-id";
+
+/** Marks built-in discounts with their offer, so leftovers can always be found. */
+async function tagBuiltinDiscounts(admin: Admin, ids: string[], offerId: number) {
+  if (!ids.length) return;
+  const data = await gql(
+    admin,
+    `#graphql
+    mutation VdpTagBuiltin($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        userErrors { field message }
+      }
+    }`,
+    {
+      metafields: ids.map((ownerId) => ({
+        ownerId,
+        namespace: DISCOUNT_NAMESPACE,
+        key: OFFER_TAG_KEY,
+        type: "single_line_text_field",
+        value: String(offerId),
+      })),
+    },
+  );
+  throwUserErrors(data.metafieldsSet.userErrors);
+}
+
+interface AutomaticDiscountInfo {
+  id: string;
+  offerTag: string | null;
+  basic: boolean;
+  title: string;
+  minQty: number | null;
+}
+
+async function listAutomaticDiscounts(admin: Admin): Promise<AutomaticDiscountInfo[]> {
+  const out: AutomaticDiscountInfo[] = [];
+  let after: string | null = null;
+  for (let page = 0; page < 10; page++) {
+    const data: any = await gql(
+      admin,
+      `#graphql
+      query VdpAutomaticDiscounts($after: String, $ns: String!, $key: String!) {
+        automaticDiscountNodes(first: 100, after: $after) {
+          nodes {
+            id
+            metafield(namespace: $ns, key: $key) { value }
+            automaticDiscount {
+              __typename
+              ... on DiscountAutomaticBasic {
+                title
+                minimumRequirement {
+                  ... on DiscountMinimumQuantity { greaterThanOrEqualToQuantity }
+                }
+              }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { after, ns: DISCOUNT_NAMESPACE, key: OFFER_TAG_KEY },
+    );
+    const conn = data.automaticDiscountNodes;
+    for (const n of conn.nodes) {
+      const d = n.automaticDiscount ?? {};
+      const min = d.minimumRequirement?.greaterThanOrEqualToQuantity;
+      out.push({
+        id: n.id,
+        offerTag: n.metafield?.value ?? null,
+        basic: d.__typename === "DiscountAutomaticBasic",
+        title: d.title ?? "",
+        minQty: min != null ? Number(min) : null,
+      });
+    }
+    if (!conn.pageInfo.hasNextPage) break;
+    after = conn.pageInfo.endCursor;
+  }
+  return out;
+}
+
+/** The shopper-facing titles an offer's built-in discounts get, with their quantities. */
+function builtinTitles(title: string, config: OfferConfig) {
+  return builtinTiers(config).map(({ tier, title: tierTitle }) => ({
+    minQty: tier.minQty,
+    title:
+      tier.label ||
+      config.message.replace(/\{qty\}/g, String(tier.minQty)) ||
+      `${title}: ${tierTitle}`,
+  }));
+}
+
+/**
+ * Deletes this offer's built-in discounts that are no longer tracked: ones
+ * tagged with the offer, and untagged ones from before tagging that match a
+ * title and quantity this offer made. Discounts any other offer tracks are
+ * never touched. Without this, a discount that wasn't deleted on an earlier
+ * save kept applying its old value (e.g. 20% after changing a tier to 10%),
+ * because Shopify applies the biggest of the automatic discounts.
+ */
+async function sweepStaleBuiltin(
+  admin: Admin,
+  shop: string,
+  offerId: number | null,
+  titleSets: { title: string; config: OfferConfig }[],
+) {
+  const others = await prisma.offer.findMany({
+    where: { shop, ...(offerId ? { NOT: { id: offerId } } : {}) },
+    select: { builtinDiscountIds: true, discountId: true },
+  });
+  const protectedIds = new Set<string>();
+  for (const o of others) {
+    parseIds(o.builtinDiscountIds).forEach((id) => protectedIds.add(id));
+    if (o.discountId) protectedIds.add(o.discountId);
+  }
+  const legacy = titleSets.flatMap(({ title, config }) => builtinTitles(title, config));
+  const matchesLegacy = (d: AutomaticDiscountInfo) =>
+    d.basic &&
+    legacy.some(
+      (l) =>
+        l.minQty === d.minQty &&
+        (d.title === l.title || d.title.startsWith(`${l.title} (`)),
+    );
+  const stale = (await listAutomaticDiscounts(admin)).filter(
+    (d) =>
+      !protectedIds.has(d.id) &&
+      ((offerId != null && d.offerTag === String(offerId)) ||
+        (d.offerTag == null && matchesLegacy(d))),
+  );
+  for (const d of stale) await deleteDiscount(admin, d.id);
+  return stale.length;
+}
+
 async function deleteBuiltinDiscounts(admin: Admin, ids: string[]) {
   for (const id of ids) await deleteDiscount(admin, id);
 }
@@ -404,6 +535,12 @@ export async function saveOffer(
     if (problems.length) throw new ShopifyUserError(problems);
     // Simplest to replace them all; tiers may have been added or removed.
     await deleteBuiltinDiscounts(admin, builtinIds);
+    // Also clear any leftovers an earlier save missed, so an old tier value
+    // can't keep applying alongside the new one.
+    await sweepStaleBuiltin(admin, shop, existing?.id ?? null, [
+      { title: input.title, config },
+      ...(existing ? [{ title: existing.title, config: parseConfig(existing.config) }] : []),
+    ]);
     builtinIds = await createBuiltinDiscounts(
       admin,
       input.title,
@@ -424,6 +561,7 @@ export async function saveOffer(
   const offer = existing
     ? await prisma.offer.update({ where: { id: existing.id }, data })
     : await prisma.offer.create({ data });
+  if (engine === "builtin") await tagBuiltinDiscounts(admin, builtinIds, offer.id);
 
   await publishWidgetData(admin, shop);
   return offer;
@@ -464,6 +602,11 @@ export async function deleteOffer(admin: Admin, shop: string, id: number) {
   if (!offer) return;
   if (offer.discountId) await deleteDiscount(admin, offer.discountId);
   await deleteBuiltinDiscounts(admin, parseIds(offer.builtinDiscountIds));
+  if ((await getDiscountEngine(shop)) === "builtin") {
+    await sweepStaleBuiltin(admin, shop, id, [
+      { title: offer.title, config: parseConfig(offer.config) },
+    ]);
+  }
   await prisma.offer.delete({ where: { id } });
   await publishWidgetData(admin, shop);
 }
